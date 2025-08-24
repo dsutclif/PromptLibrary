@@ -1,0 +1,941 @@
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Permission Alert Banner */
+.permission-alert {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  animation: slideDown 0.3s ease-out;
+}
+
+.permission-alert-content {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+.permission-grant-btn {
+  background: rgba(255, 255, 255, 0.9);
+  color: #2563eb;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.permission-grant-btn:hover {
+  background: white;
+  transform: translateY(-1px);
+}
+
+.permission-icon {
+  font-size: 18px;
+  min-width: 18px;
+}
+
+.permission-text {
+  flex: 1;
+  font-size: 13px;
+}
+
+.permission-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.permission-subtitle {
+  opacity: 0.9;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.permission-dismiss {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.permission-dismiss:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  background: #ffffff;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e1e5e9;
+  padding: 16px;
+  flex-shrink: 0;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.action-btn {
+  padding: 8px;
+  border: 1px solid #c0c0c0;
+  background: #d9d9d9;
+  color: #374151;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+
+.action-btn:hover {
+  background: #c0c0c0;
+}
+
+.action-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #c0c0c0;
+  background: #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: #c0c0c0;
+}
+
+/* Search Row */
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-container {
+  position: relative;
+  flex: 1;
+}
+
+.import-export-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+/* Content */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.empty-state {
+  text-align: center;
+  color: #6b7280;
+  padding: 48px 24px;
+  font-style: italic;
+}
+
+/* Folder and Prompt Items */
+.folder-item {
+  margin-bottom: 8px;
+}
+
+.folder-container {
+  position: relative;
+}
+
+.folder-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 12px 12px 12px 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  position: relative;
+}
+
+.folder-button:hover {
+  background: #f3f4f6;
+}
+
+.folder-button.selected {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.disclosure-triangle {
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  color: #6b7280;
+  transition: transform 0.15s ease;
+}
+
+.disclosure-triangle.expanded {
+  transform: rotate(90deg);
+}
+
+.folder-icon {
+  margin-right: 8px;
+  color: #3b82f6;
+}
+
+.folder-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.folder-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.item-count {
+  font-size: 12px;
+  color: #6b7280;
+  min-width: 20px;
+  text-align: right;
+}
+
+.delete-folder-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.folder-container:hover .delete-folder-btn {
+  opacity: 1;
+}
+
+.delete-folder-btn:hover {
+  background: #ef4444;
+  color: white;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.folder-contents {
+  margin-left: 24px;
+  margin-top: 4px;
+}
+
+.prompt-item {
+  margin-bottom: 4px;
+}
+
+.prompt-container {
+  position: relative;
+}
+
+.prompt-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 8px 8px 8px 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  position: relative;
+}
+
+.prompt-button:hover {
+  background: #f3f4f6;
+}
+
+.prompt-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.prompt-title {
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prompt-title-completed {
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #22c55e;
+}
+
+.prompt-preview {
+  color: #6b7280;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0;
+  line-height: 1.1;
+}
+
+.delete-prompt-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.prompt-container:hover .delete-prompt-btn {
+  opacity: 1;
+}
+
+.delete-prompt-btn:hover {
+  background: #ef4444;
+  color: white;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.edit-prompt-btn,
+.schedule-prompt-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: all 0.2s ease;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.edit-prompt-btn {
+  right: 28px;
+}
+
+.schedule-prompt-btn {
+  right: 8px;
+}
+
+/* Remove hover opacity rules - buttons always visible now */
+
+.edit-prompt-btn:hover {
+  background: #3b82f6;
+  color: white;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.schedule-prompt-btn:hover {
+  background: #f59e0b;
+  color: white;
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* Recently Used */
+.recent-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+/* New Section */
+.new-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #374151;
+}
+
+.quick-action-btn:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.quick-action-icon {
+  font-size: 16px;
+}
+
+.quick-action-text {
+  font-weight: 500;
+}
+
+/* Footer */
+.footer {
+  background: #f8f9fa;
+  border-top: 1px solid #e1e5e9;
+  padding: 16px;
+  flex-shrink: 0;
+}
+
+.footer-info {
+  margin-bottom: 12px;
+}
+
+.stats {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.footer-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: #d9d9d9;
+  color: #374151;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.footer-btn:hover {
+  background: #c0c0c0;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(248, 249, 250, 0.95);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-overlay.visible {
+  display: flex;
+}
+
+.modal {
+  background: #ffffff;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 320px;
+  max-height: 80vh;
+  overflow: auto;
+  display: none;
+}
+
+.modal.visible {
+  display: block;
+}
+
+.modal-content {
+  padding: 20px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+
+.modal-description {
+  color: #6b7280;
+  font-size: 13px;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+/* LLM Options */
+.llm-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.llm-option {
+  padding: 12px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  background: #f8f9fa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.llm-option:hover {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.llm-option.selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.llm-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+.llm-icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.llm-info {
+  flex: 1;
+}
+
+.llm-name {
+  font-weight: 500;
+  font-size: 14px;
+  color: #1f2937;
+  margin-bottom: 2px;
+}
+
+.llm-url {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Form Elements */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.folder-select-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.folder-select-container .form-select {
+  flex: 1;
+}
+
+.add-folder-inline-btn {
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.add-folder-inline-btn:hover {
+  background: #f3f4f6;
+  border-color: #3b82f6;
+}
+
+.add-folder-inline-btn:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Inline folder creation */
+.new-folder-input {
+  margin-top: 8px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.folder-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.folder-buttons .modal-button {
+  flex: 1;
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+/* Delete buttons */
+.delete-folder-btn,
+.delete-prompt-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.delete-folder-btn:hover,
+.delete-prompt-btn:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.folder-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Modal Actions */
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-button {
+  padding: 8px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-button.primary {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.modal-button.primary:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.modal-button.secondary {
+  background: #f9fafb;
+  color: #374151;
+}
+
+.modal-button.secondary:hover {
+  background: #f3f4f6;
+}
+
+.modal-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Drag and Drop */
+.prompt-item[draggable] {
+  cursor: grab;
+}
+
+.prompt-item.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+}
+
+.folder-item.drag-over {
+  background: rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  border: 2px dashed #3b82f6;
+}
+
+/* Scheduled prompts section */
+.scheduled-section {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.scheduled-active {
+  border-left: 3px solid #10b981;
+}
+
+.scheduled-expired {
+  border-left: 3px solid #6b7280;
+  opacity: 0.7;
+}
+
+.schedule-time {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.scheduled-active .schedule-time {
+  color: #059669;
+  font-weight: 500;
+}
+
+.scheduled-expired .schedule-time {
+  color: #9ca3af;
+}
+
+.prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Scheduled prompt specific layout */
+.scheduled-prompt-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  width: 100%;
+}
+
+.scheduled-prompt-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.scheduled-prompt-container .delete-prompt-btn {
+  position: static;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.scheduled-prompt-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.scheduled-prompt-actions .edit-prompt-btn {
+  position: static;
+  margin: 0;
+  opacity: 1 !important;
+  visibility: visible;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.scheduled-prompt-actions .edit-prompt-btn:hover {
+  background: rgba(107, 114, 128, 0.1);
+}
+
+/* Add hover rule for scheduled prompt container */
+.scheduled-prompt-container:hover .edit-prompt-btn {
+  opacity: 1;
+}

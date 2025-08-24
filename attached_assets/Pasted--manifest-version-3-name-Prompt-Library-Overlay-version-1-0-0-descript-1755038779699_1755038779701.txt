@@ -1,0 +1,1035 @@
+{
+  "manifest_version": 3,
+  "name": "Prompt Library Overlay",
+  "version": "1.0.0",
+  "description": "A Chrome extension that provides a right-panel overlay for managing and inserting prompts into LLM platforms",
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "clipboardWrite",
+    "commands"
+  ],
+  
+  "host_permissions": [
+    "https://claude.ai/*",
+    "https://chat.openai.com/*",
+    "https://gemini.google.com/*",
+    "https://www.perplexity.ai/*"
+  ],
+  
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": [
+        "lib/utils.js",
+        "lib/messaging.js",
+        "content/adapters/claude.js",
+        "content/panel/panel-injector.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.openai.com/*"],
+      "js": [
+        "lib/utils.js",
+        "lib/messaging.js",
+        "content/adapters/chatgpt.js",
+        "content/panel/panel-injector.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": [
+        "lib/utils.js",
+        "lib/messaging.js",
+        "content/adapters/gemini.js",
+        "content/panel/panel-injector.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.perplexity.ai/*"],
+      "js": [
+        "lib/utils.js",
+        "lib/messaging.js",
+        "content/adapters/perplexity.js",
+        "content/panel/panel-injector.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "action": {
+    "default_popup": "",
+    "default_title": "Prompt Library (Alt+P)",
+    "default_icon": {
+      "16": "icons/icon16.svg",
+      "32": "icons/icon32.svg",
+      "48": "icons/icon48.svg",
+      "128": "icons/icon128.svg"
+    }
+  },
+  
+  "commands": {
+    "toggle-panel": {
+      "suggested_key": {
+        "default": "Alt+P"
+      },
+      "description": "Toggle prompt library panel"
+    },
+    "use-recent-prompt": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Use most recent prompt"
+    },
+    "save-current-chat": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P"
+      },
+      "description": "Save current chat input as prompt"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon16.svg",
+    "32": "icons/icon32.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/panel/panel.html",
+        "content/panel/panel.css"
+      ],
+      "matches": [
+        "https://claude.ai/*",
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*"
+      ]
+    }
+  ]
+}
+ 
+import { Storage } from '../lib/storage.js';
+import { sendMessageToTab, broadcastMessage } from '../lib/messaging.js';
+
+class ServiceWorker {
+  constructor() {
+    this.storage = new Storage();
+    this.setupEventListeners();
+    this.initializeStorage();
+  }
+
+  async initializeStorage() {
+    const data = await this.storage.get(['version']);
+    if (!data.version) {
+      // Initialize default data structure
+      await this.storage.set({
+        version: 1,
+        ui: {
+          panelWidthByHost: { default: 360 }
+        },
+        settings: {
+          goToLLM: null,
+          autoOpenPreferred: true
+        },
+        folders: [
+          { 
+            id: 'fld_root', 
+            name: 'Root', 
+            parentId: null, 
+            childFolderIds: [], 
+            promptIds: [] 
+          }
+        ],
+        prompts: {},
+        recentPromptId: null
+      });
+    }
+  }
+
+  setupEventListeners() {
+    // Action button click
+    chrome.action.onClicked.addListener((tab) => {
+      this.togglePanel(tab.id);
+    });
+
+    // Keyboard shortcuts
+    chrome.commands.onCommand.addListener((command, tab) => {
+      switch (command) {
+        case 'toggle-panel':
+          this.togglePanel(tab.id);
+          break;
+        case 'use-recent-prompt':
+          this.useRecentPrompt(tab.id);
+          break;
+        case 'save-current-chat':
+          this.saveCurrentChat(tab.id);
+          break;
+      }
+    });
+
+    // Message handling from content scripts
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      this.handleMessage(message, sender, sendResponse);
+      return true; // Keep message channel open for async responses
+    });
+
+    // Tab updates
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      if (changeInfo.status === 'complete' && this.isSupportedLLM(tab.url)) {
+        // Re-inject content scripts if needed
+        this.ensureContentScriptsInjected(tabId);
+      }
+    });
+  }
+
+  async handleMessage(message, sender, sendResponse) {
+    try {
+      switch (message.type) {
+        case 'USE_PROMPT':
+          await this.usePrompt(sender.tab.id, message.promptId);
+          break;
+        case 'SAVE_PROMPT':
+          await this.savePrompt(message.promptData);
+          break;
+        case 'GET_LIBRARY_DATA':
+          const data = await this.getLibraryData();
+          sendResponse({ success: true, data });
+          break;
+        case 'UPDATE_LIBRARY_DATA':
+          await this.updateLibraryData(message.data);
+          sendResponse({ success: true });
+          break;
+        case 'TOGGLE_PANEL':
+          await this.togglePanel(sender.tab.id);
+          break;
+        case 'REQUEST_LLM_CHOICE':
+          await this.showLLMChooser(sender.tab.id);
+          break;
+        default:
+          console.warn('Unknown message type:', message.type);
+      }
+    } catch (error) {
+      console.error('Error handling message:', error);
+      sendResponse({ success: false, error: error.message });
+    }
+  }
+
+  async togglePanel(tabId) {
+    await sendMessageToTab(tabId, { type: 'TOGGLE_PANEL' });
+  }
+
+  async usePrompt(tabId, promptId) {
+    const data = await this.storage.get(['prompts']);
+    const prompt = data.prompts[promptId];
+    
+    if (!prompt) {
+      console.error('Prompt not found:', promptId);
+      return;
+    }
+
+    // Update recent prompt
+    await this.storage.set({ recentPromptId: promptId });
+
+    // Check if current tab supports LLM insertion
+    const tab = await chrome.tabs.get(tabId);
+    if (this.isSupportedLLM(tab.url)) {
+      await sendMessageToTab(tabId, { 
+        type: 'INSERT_PROMPT', 
+        text: prompt.body 
+      });
+    } else {
+      // Open go-to LLM or show chooser
+      await this.handleUnsupportedLLM(prompt.body);
+    }
+  }
+
+  async useRecentPrompt(tabId) {
+    const data = await this.storage.get(['recentPromptId']);
+    if (data.recentPromptId) {
+      await this.usePrompt(tabId, data.recentPromptId);
+    } else {
+      await this.showToast(tabId, 'No recent prompt found', 'warning');
+    }
+  }
+
+  async saveCurrentChat(tabId) {
+    const tab = await chrome.tabs.get(tabId);
+    if (!this.isSupportedLLM(tab.url)) {
+      await this.showToast(tabId, 'No supported chat input found', 'error');
+      return;
+    }
+
+    await sendMessageToTab(tabId, { type: 'READ_CURRENT_INPUT' });
+  }
+
+  async savePrompt(promptData) {
+    const data = await this.storage.get(['prompts', 'folders']);
+    const promptId = 'prm_' + Date.now();
+    
+    const newPrompt = {
+      id: promptId,
+      title: promptData.title,
+      body: promptData.body,
+      parentFolderId: promptData.parentFolderId || 'fld_root',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    data.prompts[promptId] = newPrompt;
+    
+    // Add to parent folder
+    const parentFolder = data.folders.find(f => f.id === newPrompt.parentFolderId);
+    if (parentFolder) {
+      parentFolder.promptIds.push(promptId);
+    }
+
+    await this.storage.set({ prompts: data.prompts, folders: data.folders });
+  }
+
+  async handleUnsupportedLLM(promptText) {
+    const settings = await this.storage.get(['settings']);
+    
+    if (!settings.settings.goToLLM) {
+      // Show LLM chooser modal
+      // This would typically open a popup or inject a modal
+      return;
+    }
+
+    // Open preferred LLM
+    const llmUrl = this.getLLMUrl(settings.settings.goToLLM);
+    const tab = await chrome.tabs.create({ url: llmUrl });
+    
+    // Wait for page to load, then insert prompt
+    setTimeout(async () => {
+      await sendMessageToTab(tab.id, { 
+        type: 'INSERT_PROMPT', 
+        text: promptText 
+      });
+    }, 3000);
+  }
+
+  async getLibraryData() {
+    return await this.storage.get(['folders', 'prompts', 'settings', 'ui']);
+  }
+
+  async updateLibraryData(data) {
+    await this.storage.set(data);
+  }
+
+  async showToast(tabId, message, type = 'info') {
+    await sendMessageToTab(tabId, { 
+      type: 'SHOW_TOAST', 
+      message, 
+      toastType: type 
+    });
+  }
+
+  isSupportedLLM(url) {
+    const supportedDomains = [
+      'claude.ai',
+      'chat.openai.com',
+      'gemini.google.com',
+      'www.perplexity.ai'
+    ];
+    
+    try {
+      const urlObj = new URL(url);
+      return supportedDomains.some(domain => urlObj.hostname === domain);
+    } catch {
+      return false;
+    }
+  }
+
+  getLLMUrl(llmKey) {
+    const urls = {
+      claude: 'https://claude.ai/chat',
+      chatgpt: 'https://chat.openai.com/',
+      gemini: 'https://gemini.google.com/app',
+      perplexity: 'https://www.perplexity.ai/'
+    };
+    return urls[llmKey] || urls.claude;
+  }
+
+  async ensureContentScriptsInjected(tabId) {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => window.promptLibraryInjected
+      });
+    } catch (error) {
+      // Content script not injected, inject it
+      console.log('Re-injecting content scripts for tab:', tabId);
+    }
+  }
+}
+
+// Initialize service worker
+new ServiceWorker();
+ 
+ 
+// Utility functions for the extension
+
+export function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+export function throttle(func, limit) {
+  let inThrottle;
+  return function(...args) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  };
+}
+
+export function generateId(prefix = 'id') {
+  return prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+export function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+export function copyToClipboard(text) {
+  return navigator.clipboard.writeText(text).catch(() => {
+    // Fallback for older browsers
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  });
+}
+
+export function isElementVisible(element) {
+  if (!element) return false;
+  
+  const rect = element.getBoundingClientRect();
+  const computedStyle = window.getComputedStyle(element);
+  
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    computedStyle.display !== 'none' &&
+    computedStyle.visibility !== 'hidden' &&
+    computedStyle.opacity !== '0'
+  );
+}
+
+export function waitForElement(selector, timeout = 5000) {
+  return new Promise((resolve, reject) => {
+    const element = document.querySelector(selector);
+    if (element) {
+      resolve(element);
+      return;
+    }
+
+    const observer = new MutationObserver((mutations) => {
+      const element = document.querySelector(selector);
+      if (element) {
+        observer.disconnect();
+        resolve(element);
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    setTimeout(() => {
+      observer.disconnect();
+      reject(new Error(`Element ${selector} not found within ${timeout}ms`));
+    }, timeout);
+  });
+}
+
+export function simulateTyping(element, text) {
+  // Clear existing content
+  element.value = '';
+  element.textContent = '';
+
+  // Focus the element
+  element.focus();
+
+  // For contenteditable elements
+  if (element.isContentEditable) {
+    element.textContent = text;
+    
+    // Trigger events
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    
+    // Set cursor to end
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    // For input/textarea elements
+    element.value = text;
+    
+    // Trigger events
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+    
+    // Set cursor to end
+    element.setSelectionRange(text.length, text.length);
+  }
+}
+
+export function showToast(message, type = 'info', duration = 3000) {
+  // Create toast element
+  const toast = document.createElement('div');
+  toast.className = `prompt-library-toast prompt-library-toast-${type}`;
+  toast.innerHTML = `
+    <div class="toast-icon">
+      ${type === 'success' ? '✓' : type === 'warning' ? '⚠' : type === 'error' ? '✗' : 'ℹ'}
+    </div>
+    <span class="toast-message">${escapeHtml(message)}</span>
+  `;
+
+  // Add styles
+  const style = document.createElement('style');
+  style.textContent = `
+    .prompt-library-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    .prompt-library-toast-success {
+      background: rgba(34, 197, 94, 0.9);
+      color: white;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .prompt-library-toast-warning {
+      background: rgba(251, 191, 36, 0.9);
+      color: white;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+    
+    .prompt-library-toast-error {
+      background: rgba(239, 68, 68, 0.9);
+      color: white;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .prompt-library-toast-info {
+      background: rgba(59, 130, 246, 0.9);
+      color: white;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    
+    .toast-icon {
+      margin-right: 8px;
+      font-weight: bold;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+  document.body.appendChild(toast);
+
+  // Auto remove
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease-in forwards';
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+      if (style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
+    }, 300);
+  }, duration);
+}
+ 
+export async function sendMessageToBackground(message) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(message, resolve);
+  });
+}
+
+export async function sendMessageToTab(tabId, message) {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, message, resolve);
+  });
+}
+
+export function broadcastMessage(message) {
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach(tab => {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, message).catch(() => {
+          // Ignore errors for tabs that don't have content scripts
+        });
+      }
+    });
+  });
+}
+
+export function addMessageListener(callback) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    callback(message, sender, sendResponse);
+    return true; // Keep channel open
+  });
+}
+ 
+ 
+import { addMessageListener } from '../../lib/messaging.js';
+import { showToast } from '../../lib/utils.js';
+
+class PanelInjector {
+  constructor() {
+    this.panelVisible = false;
+    this.panelContainer = null;
+    this.shadowRoot = null;
+    
+    // Mark as injected
+    window.promptLibraryInjected = true;
+    
+    this.setupMessageListener();
+    this.injectPanel();
+  }
+
+  setupMessageListener() {
+    addMessageListener((message, sender, sendResponse) => {
+      switch (message.type) {
+        case 'TOGGLE_PANEL':
+          this.togglePanel();
+          break;
+        case 'INSERT_PROMPT':
+          this.insertPrompt(message.text);
+          break;
+        case 'READ_CURRENT_INPUT':
+          this.readCurrentInput();
+          break;
+        case 'SHOW_TOAST':
+          showToast(message.message, message.toastType);
+          break;
+      }
+    });
+  }
+
+  async injectPanel() {
+    // Create container element
+    this.panelContainer = document.createElement('div');
+    this.panelContainer.id = 'prompt-library-container';
+    this.panelContainer.style.cssText = `
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 400px;
+      height: 100vh;
+      z-index: 999999;
+      pointer-events: none;
+      transition: right 0.3s ease-out;
+    `;
+
+    // Create shadow DOM for style isolation
+    this.shadowRoot = this.panelContainer.attachShadow({ mode: 'closed' });
+
+    // Load panel HTML and CSS
+    const panelUrl = chrome.runtime.getURL('content/panel/panel.html');
+    const cssUrl = chrome.runtime.getURL('content/panel/panel.css');
+
+    try {
+      const [htmlResponse, cssResponse] = await Promise.all([
+        fetch(panelUrl),
+        fetch(cssUrl)
+      ]);
+
+      const html = await htmlResponse.text();
+      const css = await cssResponse.text();
+
+      // Create style element
+      const style = document.createElement('style');
+      style.textContent = css;
+
+      // Create container for HTML
+      const htmlContainer = document.createElement('div');
+      htmlContainer.innerHTML = html;
+
+      // Append to shadow DOM
+      this.shadowRoot.appendChild(style);
+      this.shadowRoot.appendChild(htmlContainer);
+
+      // Initialize panel functionality
+      this.initializePanelEvents();
+
+      // Append to document body
+      document.body.appendChild(this.panelContainer);
+
+    } catch (error) {
+      console.error('Failed to inject panel:', error);
+    }
+  }
+
+  initializePanelEvents() {
+    const panelScript = document.createElement('script');
+    panelScript.src = chrome.runtime.getURL('content/panel/panel.js');
+    this.shadowRoot.appendChild(panelScript);
+  }
+
+  togglePanel() {
+    this.panelVisible = !this.panelVisible;
+    
+    if (this.panelVisible) {
+      this.panelContainer.style.right = '0px';
+      this.panelContainer.style.pointerEvents = 'auto';
+    } else {
+      this.panelContainer.style.right = '-400px';
+      this.panelContainer.style.pointerEvents = 'none';
+    }
+  }
+
+  async insertPrompt(text) {
+    // Use the appropriate LLM adapter to insert the prompt
+    if (window.promptLibraryAdapter && window.promptLibraryAdapter.insert) {
+      try {
+        const success = await window.promptLibraryAdapter.insert(text);
+        if (success) {
+          showToast('Prompt inserted successfully!', 'success');
+        } else {
+          // Fallback to clipboard
+          await navigator.clipboard.writeText(text);
+          showToast('Copied to clipboard—paste into the chat box.', 'warning');
+        }
+      } catch (error) {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(text);
+        showToast('Copied to clipboard—paste into the chat box.', 'warning');
+      }
+    }
+  }
+
+  async readCurrentInput() {
+    if (window.promptLibraryAdapter && window.promptLibraryAdapter.readCurrentInput) {
+      try {
+        const text = await window.promptLibraryAdapter.readCurrentInput();
+        if (text && text.trim()) {
+          // Send to background script to open save modal
+          chrome.runtime.sendMessage({
+            type: 'SAVE_PROMPT',
+            promptData: {
+              title: text.substring(0, 60).trim() + (text.length > 60 ? '...' : ''),
+              body: text,
+              parentFolderId: 'fld_root'
+            }
+          });
+          showToast('Prompt saved successfully!', 'success');
+        } else {
+          showToast('No text found in chat input.', 'warning');
+        }
+      } catch (error) {
+        showToast('Failed to read chat input.', 'error');
+      }
+    } else {
+      showToast('No supported chat input found.', 'error');
+    }
+  }
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => new PanelInjector());
+} else {
+  new PanelInjector();
+}
+ 
+ 
+// Utility functions for the extension
+
+export function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+export function throttle(func, limit) {
+  let inThrottle;
+  return function(...args) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  };
+}
+
+export function generateId(prefix = 'id') {
+  return prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+export function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+export function copyToClipboard(text) {
+  return navigator.clipboard.writeText(text).catch(() => {
+    // Fallback for older browsers
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  });
+}
+
+export function isElementVisible(element) {
+  if (!element) return false;
+  
+  const rect = element.getBoundingClientRect();
+  const computedStyle = window.getComputedStyle(element);
+  
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    computedStyle.display !== 'none' &&
+    computedStyle.visibility !== 'hidden' &&
+    computedStyle.opacity !== '0'
+  );
+}
+
+export function waitForElement(selector, timeout = 5000) {
+  return new Promise((resolve, reject) => {
+    const element = document.querySelector(selector);
+    if (element) {
+      resolve(element);
+      return;
+    }
+
+    const observer = new MutationObserver((mutations) => {
+      const element = document.querySelector(selector);
+      if (element) {
+        observer.disconnect();
+        resolve(element);
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    setTimeout(() => {
+      observer.disconnect();
+      reject(new Error(`Element ${selector} not found within ${timeout}ms`));
+    }, timeout);
+  });
+}
+
+export function simulateTyping(element, text) {
+  // Clear existing content
+  element.value = '';
+  element.textContent = '';
+
+  // Focus the element
+  element.focus();
+
+  // For contenteditable elements
+  if (element.isContentEditable) {
+    element.textContent = text;
+    
+    // Trigger events
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    
+    // Set cursor to end
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    // For input/textarea elements
+    element.value = text;
+    
+    // Trigger events
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+    
+    // Set cursor to end
+    element.setSelectionRange(text.length, text.length);
+  }
+}
+
+export function showToast(message, type = 'info', duration = 3000) {
+  // Create toast element
+  const toast = document.createElement('div');
+  toast.className = `prompt-library-toast prompt-library-toast-${type}`;
+  toast.innerHTML = `
+    <div class="toast-icon">
+      ${type === 'success' ? '✓' : type === 'warning' ? '⚠' : type === 'error' ? '✗' : 'ℹ'}
+    </div>
+    <span class="toast-message">${escapeHtml(message)}</span>
+  `;
+
+  // Add styles
+  const style = document.createElement('style');
+  style.textContent = `
+    .prompt-library-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    .prompt-library-toast-success {
+      background: rgba(34, 197, 94, 0.9);
+      color: white;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .prompt-library-toast-warning {
+      background: rgba(251, 191, 36, 0.9);
+      color: white;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+    
+    .prompt-library-toast-error {
+      background: rgba(239, 68, 68, 0.9);
+      color: white;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .prompt-library-toast-info {
+      background: rgba(59, 130, 246, 0.9);
+      color: white;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    
+    .toast-icon {
+      margin-right: 8px;
+      font-weight: bold;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+  document.body.appendChild(toast);
+
+  // Auto remove
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease-in forwards';
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+      if (style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
+    }, 300);
+  }, duration);
+}
+ 

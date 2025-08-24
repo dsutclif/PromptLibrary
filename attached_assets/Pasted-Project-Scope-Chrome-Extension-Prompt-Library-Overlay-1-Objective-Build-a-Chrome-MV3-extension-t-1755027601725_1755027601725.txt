@@ -1,0 +1,343 @@
+Project Scope — Chrome Extension: Prompt Library Overlay
+1) Objective
+Build a Chrome MV3 extension that:
+
+Stores a nested library of prompts (local-only storage).
+
+Stays hidden until the toolbar icon is clicked.
+
+Opens a right-side overlay panel (semi-transparent, Apple-minimal aesthetic, auto light/dark).
+
+Shows folders → prompts; each prompt row has Expand (preview body) and Use.
+
+Use inserts the prompt into the active LLM (Claude, ChatGPT, Gemini, Perplexity).
+
+If no supported LLM is available, show a “Choose your go-to LLM” popup once; on subsequent attempts, auto-open the chosen LLM in a new tab and focus its composer.
+
+Global shortcuts:
+
+Alt+P → Open/close panel
+
+Alt+Shift+P → Use most recently used prompt (insert into active LLM if present, else auto-open go-to LLM)
+
+Ctrl+Shift+P → Save current chat input as a new prompt (from the active LLM’s composer)
+
+Non-goals (MVP): import/export, encryption, telemetry, advanced templating, team sync.
+
+2) Users & Key Flows
+User: Power user on Windows or Mac, always in Chrome, often with LLM tabs open.
+
+Core flows:
+
+Open panel → browse folders → Expand/Use a prompt.
+
+Use latest prompt via hotkey (no panel).
+
+Save current chat input as a prompt.
+
+First time “Use” without an LLM: show “go-to LLM” chooser → persist choice → future “Use” auto-opens that LLM.
+
+3) UX Requirements
+Panel behavior
+
+Anchored to right edge, ~360px default width, draggable resizer; persist width per domain.
+
+Semi-transparent backdrop and soft shadow; Apple-style minimal (rounded corners, 12–14px body text, subtle dividers).
+
+Adapts to browser theme (prefers-color-scheme).
+
+Navigation
+
+Tree view folders (nested) with expand/collapse chevrons.
+
+Inside a folder: list of prompts with Title + actions: Expand, Use.
+
+Global Search (title + body, debounced).
+
+Prompt view
+
+Expand → inline body preview with “Copy” button.
+
+Empty states
+
+Clear CTAs: “Add Folder” / “Add Prompt”.
+
+One-time chooser
+
+Modal: “What’s your go-to LLM?” with icons for Claude, ChatGPT, Gemini, Perplexity.
+
+Settings toggle: “Auto-open go-to LLM when unavailable.”
+
+Accessibility: keyboard navigable and ARIA roles in place; full screen-reader polish can be a follow-on.
+
+4) Functional Requirements
+4.1 Prompt Library
+Nested folders (arbitrary depth).
+
+Prompt object: id, title, body, timestamps, parentFolderId.
+
+CRUD for folders and prompts.
+
+Local storage only (chrome.storage.local).
+
+4.2 Insertion (Use)
+If active tab is supported LLM:
+
+Find the composer, focus it, insert prompt without auto-send.
+
+If multiple candidates, choose visible & enabled.
+
+If insertion fails, copy to clipboard and show toast: “Copied—paste into the chat box.”
+
+If not supported:
+
+If go-to LLM not set → show chooser.
+
+Else open new tab to go-to LLM, wait for composer, insert prompt.
+
+4.3 Save Current Chat (Ctrl+Shift+P)
+If on supported LLM:
+
+Read composer contents.
+
+Open “Save Prompt” modal with Title prefilled from first 60 chars; Body = composer text.
+
+User picks target folder.
+
+If not on supported LLM: toast “No supported chat input found.”
+
+4.4 Hotkeys
+Alt+P: toggle panel on current tab.
+
+Alt+Shift+P: Use recentPromptId with same insertion rules as 4.2.
+
+Ctrl+Shift+P: Save current chat (4.3).
+
+4.5 First-Run & Settings
+First open: compact tutorial (3 bullets).
+
+Settings:
+
+Go-to LLM (and “auto-open when unavailable”).
+
+Panel width reset.
+
+Theme = Auto (no manual override in MVP).
+
+“Enable on these sites” (toggle host permissions by LLM).
+
+5) Non-Functional Requirements
+MV3 compliant; no long-running background pages.
+
+Privacy: No network calls; all data local.
+
+Performance: Panel mounts <150ms, insertion <500ms after composer ready.
+
+Resilience: Multiple selector fallbacks per LLM; clipboard fallback.
+
+Security: No remote code; content scripts sandboxed; Shadow DOM for panel.
+
+6) Technical Design
+6.1 Architecture
+Manifest V3
+
+action (toolbar icon)
+
+background.service_worker: Orchestrates injections, hotkeys, LLM routing.
+
+No persistent background; event-driven.
+
+Content scripts
+
+Panel injector: mounts/unmounts the right panel (single root in Shadow DOM).
+
+Site adapters: per LLM, expose findComposer(), insert(text), readCurrentInput().
+
+Storage
+
+chrome.storage.local for library, UI state, go-to LLM, recentPromptId.
+
+Messaging
+
+Panel → Background: USE_PROMPT, SAVE_PROMPT, OPEN_SETTINGS, etc.
+
+Background → Tab: MOUNT_PANEL, INSERT_TEXT, READ_INPUT.
+
+6.2 Permissions
+json
+Copy
+Edit
+"permissions": ["storage", "activeTab", "scripting", "tabs", "clipboardWrite", "commands"],
+"host_permissions": [
+  "https://claude.ai/*",
+  "https://chat.openai.com/*",
+  "https://gemini.google.com/*",
+  "https://www.perplexity.ai/*"
+]
+6.3 Data Model (MVP)
+json
+Copy
+Edit
+{
+  "version": 1,
+  "ui": {
+    "panelWidthByHost": { "default": 360 }
+  },
+  "settings": {
+    "goToLLM": null,            // "claude" | "chatgpt" | "gemini" | "perplexity"
+    "autoOpenPreferred": true
+  },
+  "folders": [
+    { "id": "fld_root", "name": "Root", "parentId": null, "childFolderIds": ["fld_1"], "promptIds": [] }
+  ],
+  "prompts": {
+    "prm_1": { "id": "prm_1", "title": "Example", "body": "…", "parentFolderId": "fld_1", "updatedAt": 0 }
+  },
+  "recentPromptId": null
+}
+6.4 Site Adapters (V1 target: 4 LLMs)
+Adapter interface:
+
+ts
+Copy
+Edit
+interface Adapter {
+  match(url: URL): boolean;
+  findComposer(doc: Document): HTMLElement | null;
+  insert(el: HTMLElement, text: string): Promise<boolean>;
+  readCurrentInput(el: HTMLElement): Promise<string>;
+}
+Selector strategy: maintain per-LLM selector arrays (primary, backups). Try each with visibility checks.
+
+Insertion strategy:
+
+If contenteditable: focus, execCommand('insertText') or Selection/Range APIs; dispatch input/beforeinput.
+
+If textarea: set value, dispatch input and keydown events as needed.
+
+Scroll into view; ensure composer active.
+
+Failure path: write to clipboard + toast.
+
+Note: Exact selectors are volatile and will be implemented/maintained behind a small feature flag table per domain. Architect should isolate this in /adapters/{claude|chatgpt|gemini|perplexity}.ts.
+
+6.5 UI Implementation
+Shadow DOM container injected into <html> to avoid CSS collisions.
+
+Components: Tree (folders), PromptList, PromptCard (Expand/Use), Search, SettingsModal, GoToLLMModal, Toast.
+
+Styles: CSS variables; auto dark/light from prefers-color-scheme; semi-transparent panel background (e.g., rgba(… , 0.85)), blurred backdrop if feasible.
+
+6.6 One-Time Go-To LLM Flow
+On first “Use” without supported LLM context:
+
+Show GoToLLMModal.
+
+Persist choice to settings.goToLLM.
+
+On subsequent “Use” when not supported:
+
+tabs.create({ url: getLLMUrl(settings.goToLLM) })
+
+Wait for page domcontentloaded, then inject, find composer, insert.
+
+7) Error Handling & Edge Cases
+Composer not found within 3s → clipboard fallback + toast with “Open go-to LLM?”
+
+Site DOM changes → adapter tries backups; if all fail, exposes “Report issue” (local log), clipboard fallback.
+
+Multiple LLM tabs open → operate on currently active tab; if none, open go-to LLM.
+
+CSP conflicts → keep scripts injected via chrome.scripting; no inline event handlers.
+
+8) Testing Plan
+8.1 Unit
+Tree data ops (nested create/move/delete).
+
+Storage read/write & migrations (v1 → future).
+
+Adapter utilities: visibility checks, input insertion helpers.
+
+8.2 Integration (per LLM)
+Insert into empty composer.
+
+Insert into composer with existing text (append vs replace—MVP = replace; confirm behavior).
+
+Read composer → save prompt flow.
+
+Hotkeys on Windows & Mac default layouts.
+
+8.3 Manual UX
+Panel toggle, resize, theme switch, search filter.
+
+One-time go-to LLM selection; subsequent auto-open.
+
+Clipboard fallback messaging.
+
+Acceptance criteria (sample):
+
+From any page, Alt+Shift+P opens go-to LLM and inserts the last used prompt in ≤3s on a warm machine.
+
+On each of the 4 LLMs, clicking Use inserts text into the composer without sending.
+
+Ctrl+Shift+P captures current composer text and saves it as a prompt under a chosen folder.
+
+9) Delivery Artifacts
+Source repo with:
+
+/manifest.json (MV3)
+
+/background/ service worker
+
+/content/panel/ UI (Shadow DOM)
+
+/content/adapters/ (Claude, ChatGPT, Gemini, Perplexity)
+
+/lib/ (storage, messaging, DOM utils)
+
+README with build/load instructions (Developer Mode → Load unpacked).
+
+Icon set (temporary) — replace with “the image provided in the prompt” when supplied.
+
+Basic CI (lint/build) optional.
+
+10) Milestones (engineering estimates are placeholders)
+Scaffold & Panel Shell (1–2 d): Manifest, action click → panel mount, theme, resize.
+
+Library Core (1–2 d): Nested folders, CRUD, search, recent prompt tracking.
+
+Adapters v1 (2–3 d): Insert/read for Claude, ChatGPT, Gemini, Perplexity; clipboard fallback.
+
+Hotkeys & Go-To Flow (1 d): Commands, modal, auto-open logic.
+
+Polish & QA (1–2 d): A11y pass, toasts, error messaging, edge cases.
+
+11) Risks & Mitigations
+LLM DOM churn: Keep adapters modular with multiple selector fallbacks; maintain a quick patch file.
+
+MV3 service worker lifecycle: Entirely event-driven; avoid timers; re-inject panel on demand.
+
+CSP and site isolation: Use chrome.scripting.executeScript; Shadow DOM panel to avoid CSS bleed.
+
+Clipboard permissions prompts: Graceful messaging; minimize clipboard use to fallback only.
+
+12) Future Enhancements (explicitly out of scope for MVP)
+Import/export JSON, prompt packs, team sharing.
+
+Prompt variables and fill-in forms.
+
+Autosend toggle per site.
+
+Multi-browser support beyond Chrome (Firefox port).
+
+Optional end-to-end encryption of library.
+
+13) Open Questions / Decisions to Confirm
+Replace vs append behavior on insert (current plan: replace composer contents).
+
+Default panel width (360px OK?).
+
+“Use latest prompt” should it open panel briefly for status? (Current: toast only.)
+
+Any domain variants to include (e.g., claude.ai/chats/* subpaths—will be covered by wildcard).
+

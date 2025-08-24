@@ -1,0 +1,5 @@
+{
+  "title": "Meeting Notes Organizer",
+  "body": "Organize these meeting notes into a clear structure:\n\n**Meeting:** [MEETING TITLE]\n**Date:** [DATE]\n**Attendees:** [NAMES]\n\n**Key Decisions:**\n- [List decisions made]\n\n**Action Items:**\n- [Person] - [Task] - [Deadline]\n\n**Follow-up Items:**\n- [Items to discuss next time]\n\n**Notes:**\n[Raw notes go here]",
+  "tags": ["productivity", "meetings", "organization"]
+}

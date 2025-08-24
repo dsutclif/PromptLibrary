@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Library</title>
+    <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Permission Alert Banner (hidden by default) -->
+        <div id="permission-alert" class="permission-alert" style="display: none;">
+            <div class="permission-alert-content">
+                <div class="permission-icon">🔐</div>
+                <div class="permission-text">
+                    <div class="permission-title">Site Access Required</div>
+                    <div class="permission-subtitle">Grant access once to insert prompts directly into chat windows</div>
+                </div>
+                <button id="grant-permission-btn" class="permission-grant-btn">Grant Access</button>
+                <button id="dismiss-permission-alert" class="permission-dismiss">×</button>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="action-buttons">
+                    <button class="action-btn" id="add-folder-btn" title="New Folder">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+                        </svg>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" style="position: absolute; top: -2px; right: -2px;">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                    </button>
+                    <button class="action-btn" id="add-prompt-btn" title="New Prompt">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10,9 9,9 8,9"/>
+                        </svg>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" style="position: absolute; top: -2px; right: -2px;">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                    </button>
+                    <button class="action-btn" id="save-active-btn" title="Save Active">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17,21 17,13 7,13 7,21"/>
+                        </svg>
+                    </button>
+                </div>
+                <button class="icon-btn" id="settings-btn" title="Settings">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Search Bar with Import/Export -->
+            <div class="search-row">
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Search prompts..." class="search-input">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                </div>
+                <div class="import-export-buttons">
+                    <button class="icon-btn" id="export-btn" title="Export library">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7,10 12,15 17,10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" id="import-btn" title="Import library">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17,8 12,3 7,8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content">
+            <div id="library-content">
+                <!-- Content will be dynamically generated -->
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-info">
+                <span class="stats" id="stats-text">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for import functionality -->
+    <input type="file" id="import-file-input" accept=".json" style="display: none;">
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="modal-overlay">
+        <!-- Go-To LLM Modal -->
+        <div class="modal" id="llm-chooser-modal">
+            <div class="modal-content">
+                <h3 class="modal-title">Choose Your Go-To LLM</h3>
+                <p class="modal-description">When no LLM is currently open, which one should we launch for you?</p>
+                
+                <div class="llm-options">
+                    <button class="llm-option" data-llm="claude">
+                        <div class="llm-icon" data-logo="claude">
+                            <img alt="Claude" />
+                        </div>
+                        <div class="llm-info">
+                            <div class="llm-name">Claude</div>
+                            <div class="llm-url">claude.ai</div>
+                        </div>
+                    </button>
+                    
+                    <button class="llm-option" data-llm="chatgpt">
+                        <div class="llm-icon" data-logo="chatgpt">
+                            <img alt="ChatGPT" />
+                        </div>
+                        <div class="llm-info">
+                            <div class="llm-name">ChatGPT</div>
+                            <div class="llm-url">chatgpt.com</div>
+                        </div>
+                    </button>
+                    
+                    <button class="llm-option" data-llm="gemini">
+                        <div class="llm-icon" data-logo="gemini">
+                            <img alt="Gemini" />
+                        </div>
+                        <div class="llm-info">
+                            <div class="llm-name">Gemini</div>
+                            <div class="llm-url">gemini.google.com</div>
+                        </div>
+                    </button>
+                    
+                    <button class="llm-option" data-llm="perplexity">
+                        <div class="llm-icon" data-logo="perplexity">
+                            <img alt="Perplexity" />
+                        </div>
+                        <div class="llm-info">
+                            <div class="llm-name">Perplexity</div>
+                            <div class="llm-url">perplexity.ai</div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="modal-button secondary" id="cancel-llm-btn">Cancel</button>
+                    <button class="modal-button primary" id="save-llm-btn">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Prompt Modal -->
+        <div class="modal" id="save-prompt-modal">
+            <div class="modal-content">
+                <h3 class="modal-title">Save Prompt</h3>
+                
+                <form id="save-prompt-form">
+                    <div class="form-group">
+                        <label for="prompt-title">Title</label>
+                        <input type="text" id="prompt-title" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="prompt-folder">Folder</label>
+                        <div class="folder-select-container">
+                            <select id="prompt-folder" class="form-select">
+                                <!-- Options will be dynamically generated -->
+                            </select>
+                            <button type="button" class="add-folder-inline-btn" id="add-folder-inline-btn" title="Add new folder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14M12 5v14"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="new-folder-input" class="new-folder-input" style="display: none;">
+                            <input type="text" id="new-folder-name" class="form-input" placeholder="Enter folder name" />
+                            <div class="folder-buttons">
+                                <button type="button" id="save-new-folder-btn" class="modal-button primary">Save</button>
+                                <button type="button" id="cancel-new-folder-btn" class="modal-button secondary">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="prompt-content">Content</label>
+                        <textarea id="prompt-content" class="form-textarea" required></textarea>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="modal-button secondary" id="cancel-prompt-btn">Cancel</button>
+                        <button type="submit" class="modal-button primary">Save Prompt</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Folder Modal -->
+        <div class="modal" id="add-folder-modal">
+            <div class="modal-content">
+                <h3 class="modal-title">Add Folder</h3>
+                
+                <form id="add-folder-form">
+                    <div class="form-group">
+                        <label for="folder-name">Folder Name</label>
+                        <input type="text" id="folder-name" class="form-input" required>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="modal-button secondary" id="cancel-folder-btn">Cancel</button>
+                        <button type="submit" class="modal-button primary">Add Folder</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="sidepanel.js"></script>
+</body>
+</html>

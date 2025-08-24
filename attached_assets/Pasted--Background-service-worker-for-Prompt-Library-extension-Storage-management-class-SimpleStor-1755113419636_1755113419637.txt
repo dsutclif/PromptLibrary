@@ -1,0 +1,239 @@
+// Background service worker for Prompt Library extension
+
+// Storage management
+class SimpleStorage {
+  static async get(key) {
+    try {
+      const result = await chrome.storage.local.get([key]);
+      return result[key] || null;
+    } catch (error) {
+      console.error('Storage get error:', error);
+      return null;
+    }
+  }
+
+  static async set(key, value) {
+    try {
+      await chrome.storage.local.set({ [key]: value });
+      return true;
+    } catch (error) {
+      console.error('Storage set error:', error);
+      return false;
+    }
+  }
+
+  static async remove(key) {
+    try {
+      await chrome.storage.local.remove([key]);
+      return true;
+    } catch (error) {
+      console.error('Storage remove error:', error);
+      return false;
+    }
+  }
+}
+
+// Dynamic content script injection
+async function injectContentScriptIfNeeded(tab) {
+  if (!tab || !tab.url) return;
+  
+  const url = tab.url;
+  let scriptFile = null;
+  
+  // Determine which adapter script to inject based on URL
+  if (url.includes('claude.ai')) {
+    scriptFile = 'content/adapters/claude.js';
+  } else if (url.includes('chatgpt.com')) {
+    scriptFile = 'content/adapters/chatgpt.js';
+  } else if (url.includes('gemini.google.com')) {
+    scriptFile = 'content/adapters/gemini.js';
+  } else if (url.includes('www.perplexity.ai')) {
+    scriptFile = 'content/adapters/perplexity.js';
+  }
+  
+  if (scriptFile) {
+    try {
+      // Check if script is already injected by trying to send a message
+      const response = await chrome.tabs.sendMessage(tab.id, { type: 'PING' }).catch(() => null);
+      
+      if (!response) {
+        // Script not injected, inject it now
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: [scriptFile]
+        });
+        console.log(`Injected ${scriptFile} into tab ${tab.id}`);
+      }
+    } catch (error) {
+      console.log('Content script injection failed:', error);
+    }
+  }
+}
+
+// Message handling
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('Background received message:', message.type);
+  
+  switch (message.type) {
+    case 'GET_LIBRARY_DATA':
+      handleGetLibraryData().then(sendResponse);
+      return true; // Will respond asynchronously
+      
+    case 'SAVE_LIBRARY_DATA':
+      handleSaveLibraryData(message.data).then(sendResponse);
+      return true; // Will respond asynchronously
+      
+    case 'INSERT_PROMPT':
+      handleInsertPrompt(message.text, sender.tab?.id).then(sendResponse);
+      return true;
+      
+    case 'READ_CURRENT_INPUT':
+      handleReadCurrentInput(sender.tab?.id).then(sendResponse);
+      return true; // Will respond asynchronously
+      
+    case 'OPEN_LLM_AND_CLOSE_PANEL':
+      handleOpenLLMAndClosePanel(message.llm, message.currentTabId).then(sendResponse);
+      return true; // Will respond asynchronously
+      
+    default:
+      console.log('Unknown message type:', message.type);
+  }
+  
+  sendResponse({ success: true });
+});
+
+// Action button click handler - opens side panel
+chrome.action.onClicked.addListener(async (tab) => {
+  console.log('Extension icon clicked, opening side panel');
+  
+  // Inject content script if on supported LLM platform
+  await injectContentScriptIfNeeded(tab);
+  
+  // Check current URL and handle smart opening logic
+  const currentUrl = tab.url;
+  const supportedDomains = ['claude.ai', 'chatgpt.com', 'gemini.google.com', 'www.perplexity.ai'];
+  const isLLMPlatform = supportedDomains.some(domain => currentUrl.includes(domain));
+  
+  // Always open the side panel first
+  await chrome.sidePanel.open({ tabId: tab.id });
+  
+  if (!isLLMPlatform) {
+    // Not on LLM platform - check for preferred LLM
+    const libraryData = await SimpleStorage.get('promptLibraryData') || {};
+    const preferredLLM = libraryData.settings?.goToLLM;
+    
+    if (preferredLLM) {
+      // Has preferred LLM - open it in new tab
+      const urls = {
+        claude: 'https://claude.ai',
+        chatgpt: 'https://chatgpt.com',
+        gemini: 'https://gemini.google.com',
+        perplexity: 'https://www.perplexity.ai'
+      };
+      
+      const url = urls[preferredLLM];
+      if (url) {
+        await chrome.tabs.create({ url });
+      }
+    }
+    // If no preferred LLM, side panel will show settings modal automatically
+  }
+});
+
+// Message handlers
+async function handleGetLibraryData() {
+  const data = await SimpleStorage.get('promptLibraryData');
+  return {
+    success: true,
+    data: data || {
+      folders: [],
+      prompts: {},
+      settings: {},
+      ui: {}
+    }
+  };
+}
+
+async function handleSaveLibraryData(data) {
+  const success = await SimpleStorage.set('promptLibraryData', data);
+  return { success };
+}
+
+async function handleInsertPrompt(text, tabId) {
+  if (!tabId) return { success: false, error: 'No tab ID' };
+  
+  try {
+    // Get current tab info and inject content script if needed
+    const tab = await chrome.tabs.get(tabId);
+    await injectContentScriptIfNeeded(tab);
+    
+    // Wait a moment for script to initialize
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const response = await chrome.tabs.sendMessage(tabId, { 
+      type: 'INSERT_PROMPT', 
+      text: text 
+    });
+    
+    return response || { success: true };
+  } catch (error) {
+    console.error('Failed to insert prompt:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function handleReadCurrentInput(tabId) {
+  if (!tabId) return { success: false, text: '' };
+  
+  try {
+    // Get current tab info and inject content script if needed
+    const tab = await chrome.tabs.get(tabId);
+    await injectContentScriptIfNeeded(tab);
+    
+    // Wait a moment for script to initialize
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const response = await chrome.tabs.sendMessage(tabId, { 
+      type: 'READ_CURRENT_INPUT'
+    });
+    return response || { success: false, text: '' };
+  } catch (error) {
+    console.error('Failed to read current input:', error);
+    return { success: false, text: '' };
+  }
+}
+
+async function handleOpenLLMAndClosePanel(llmType, currentTabId) {
+  const llmUrls = {
+    claude: 'https://claude.ai',
+    chatgpt: 'https://chatgpt.com',
+    gemini: 'https://gemini.google.com/app',
+    perplexity: 'https://www.perplexity.ai'
+  };
+
+  const url = llmUrls[llmType];
+  if (!url) {
+    return { success: false, error: 'Unknown LLM type' };
+  }
+
+  try {
+    // Open LLM in new tab
+    const tab = await chrome.tabs.create({ url, active: true });
+    
+    // Wait a moment then open side panel in new tab
+    setTimeout(async () => {
+      try {
+        await chrome.sidePanel.open({ tabId: tab.id });
+      } catch (error) {
+        console.error('Failed to open side panel after LLM:', error);
+      }
+    }, 2000);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to open LLM:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+console.log('Prompt Library background service worker loaded');

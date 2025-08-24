@@ -1,0 +1,5 @@
+{
+  "title": "Blog Post Helper",
+  "body": "Help me write a blog post about [TOPIC]:\n\n1. Create an engaging title\n2. Write an introduction that hooks readers\n3. Outline 3-5 main points\n4. Suggest a compelling conclusion\n5. Recommend relevant tags and categories\n\nTarget audience: [AUDIENCE]\nTone: [TONE - professional/casual/technical]",
+  "tags": ["writing", "blog", "content"]
+}

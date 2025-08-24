@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Bridge - Add to Extension</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+        
+        .title {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        
+        .prompt-preview {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: #495057;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .extension-info {
+            background: #e7f3ff;
+            border: 1px solid #b8daff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .extension-info h3 {
+            margin: 0 0 15px 0;
+            color: #0056b3;
+            font-size: 1.2rem;
+        }
+        
+        .extension-info p {
+            margin: 8px 0;
+            color: #495057;
+            line-height: 1.5;
+        }
+        
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .button:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+        
+        .button.secondary {
+            background: #6c757d;
+        }
+        
+        .button.secondary:hover {
+            background: #5a6268;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .loading {
+            display: none;
+            color: #667eea;
+            font-style: italic;
+            margin: 10px 0;
+        }
+        
+        .step {
+            text-align: left;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 0.9rem;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🔗</div>
+        <h1 class="title">Prompt Bridge</h1>
+        <p class="subtitle">Adding prompt to your extension library...</p>
+        
+        <div id="loading-state" class="loading">
+            <p>Processing your prompt...</p>
+        </div>
+        
+        <div id="error-state" class="error" style="display: none;">
+            <h3>Error: No prompt data provided</h3>
+            <p>This page is designed to receive prompt data through URL parameters. Please use the link generator or make sure you're accessing this page through a properly formatted link.</p>
+        </div>
+        
+        <div id="success-state" style="display: none;">
+            <div class="success">
+                <h3>✓ Prompt successfully sent to extension!</h3>
+                <p>The prompt has been added to your Prompt Library extension. You can now find it in your extension's side panel.</p>
+            </div>
+            
+            <div class="extension-info">
+                <h3>Next Steps:</h3>
+                <div class="step">
+                    <span class="step-number">1</span>
+                    Open your browser's extension panel (usually by clicking the extension icon)
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span>
+                    Look for your new prompt in the "Recently Added" section
+                </div>
+                <div class="step">
+                    <span class="step-number">3</span>
+                    Organize it into the appropriate folder if needed
+                </div>
+            </div>
+            
+            <button class="button" onclick="window.close()">Close Tab</button>
+        </div>
+        
+        <div id="no-extension-state" style="display: none;">
+            <div class="error">
+                <h3>Extension not found</h3>
+                <p>The Prompt Library extension doesn't appear to be installed or enabled.</p>
+            </div>
+            
+            <div class="extension-info">
+                <h3>To install the Prompt Library Extension:</h3>
+                <div class="step">
+                    <span class="step-number">1</span>
+                    Download the extension from the Chrome Web Store
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span>
+                    Make sure it's enabled in your browser extensions
+                </div>
+                <div class="step">
+                    <span class="step-number">3</span>
+                    Try this link again after installation
+                </div>
+            </div>
+        </div>
+        
+        <div id="prompt-preview-container" style="display: none;">
+            <h3>Prompt Preview:</h3>
+            <div id="prompt-preview" class="prompt-preview"></div>
+            <button id="add-to-extension" class="button">Add to Extension</button>
+            <button id="cancel-action" class="button secondary" onclick="window.close()">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const EXTENSION_ID = "lonoagbmfindfckmbalijmnpdjdapiod"; // Production extension ID
+        
+        // Show loading initially
+        document.getElementById('loading-state').style.display = 'block';
+        
+        async function getPromptFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Check for ID-based short URL
+            const promptId = urlParams.get('id');
+            if (promptId) {
+                try {
+                    const response = await fetch(`./prompts/${promptId}.json`);
+                    if (!response.ok) {
+                        console.error(`Prompt file not found: ${promptId}.json`);
+                        return null;
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error('Error loading prompt file:', error);
+                    return null;
+                }
+            }
+            
+            // Check for base64-encoded prompt data (legacy support)
+            const promptData = urlParams.get('prompt');
+            if (promptData) {
+                try {
+                    // Decode base64
+                    const decodedData = atob(promptData);
+                    return JSON.parse(decodedData);
+                } catch (error) {
+                    console.error('Error parsing prompt data:', error);
+                    return null;
+                }
+            }
+            
+            return null;
+        }
+        
+        function showPromptPreview(promptData) {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('prompt-preview-container').style.display = 'block';
+            
+            const preview = document.getElementById('prompt-preview');
+            preview.innerHTML = `<strong>Title:</strong> ${promptData.title || 'Untitled'}\n\n<strong>Content:</strong>\n${promptData.body || 'No content'}`;
+            
+            // Set up the add to extension button
+            document.getElementById('add-to-extension').onclick = () => addToExtension(promptData);
+        }
+        
+        function showError() {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('error-state').style.display = 'block';
+        }
+        
+        function showNoExtension() {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('no-extension-state').style.display = 'block';
+        }
+        
+        function showSuccess() {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('prompt-preview-container').style.display = 'none';
+            document.getElementById('success-state').style.display = 'block';
+            
+            // Auto-close after 3 seconds
+            setTimeout(() => {
+                window.close();
+            }, 3000);
+        }
+        
+        async function addToExtension(promptData) {
+            try {
+                // Try to communicate with the extension
+                const response = await chrome.runtime.sendMessage(EXTENSION_ID, {
+                    type: 'ADD_PROMPT_FROM_BRIDGE',
+                    data: {
+                        title: promptData.title || 'Imported Prompt',
+                        body: promptData.body || '',
+                        folderId: null, // Will be added to root
+                        source: 'email_bridge'
+                    }
+                });
+                
+                if (response && response.success) {
+                    showSuccess();
+                } else {
+                    console.error('Extension communication failed:', response);
+                    showNoExtension();
+                }
+            } catch (error) {
+                console.error('Error communicating with extension:', error);
+                showNoExtension();
+            }
+        }
+        
+        // Check if extension is available and process prompt
+        async function initialize() {
+            // Small delay to show loading state
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const promptData = await getPromptFromUrl();
+            
+            if (!promptData) {
+                showError();
+                return;
+            }
+            
+            // Check if extension is available
+            try {
+                await chrome.runtime.sendMessage(EXTENSION_ID, { type: 'PING' });
+                showPromptPreview(promptData);
+            } catch (error) {
+                console.error('Extension not available:', error);
+                showNoExtension();
+            }
+        }
+        
+        // Start the process
+        initialize();
+    </script>
+</body>
+</html>

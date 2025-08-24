@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Add Prompt to Library</title>
+        <style>
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                max-width: 600px;
+                margin: 40px auto;
+                padding: 20px;
+                line-height: 1.6;
+                color: #333;
+                background-color: #f8f9fa;
+            }
+
+            .card {
+                background: white;
+                border-radius: 12px;
+                padding: 32px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e1e5e9;
+            }
+
+            .header {
+                text-align: center;
+                margin-bottom: 32px;
+            }
+
+            .header h1 {
+                color: #1a1a1a;
+                font-size: 28px;
+                font-weight: 600;
+                margin-bottom: 8px;
+            }
+
+            .header p {
+                color: #6b7280;
+                font-size: 16px;
+                margin: 0;
+            }
+
+            .prompt-preview {
+                background: #f8f9ff;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 24px;
+            }
+
+            .prompt-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: #1a1a1a;
+                margin-bottom: 12px;
+            }
+
+            .prompt-body {
+                color: #4a5568;
+                white-space: pre-wrap;
+                max-height: 200px;
+                overflow-y: auto;
+                background: white;
+                padding: 16px;
+                border-radius: 6px;
+                border: 1px solid #e2e8f0;
+            }
+
+            .action-button {
+                width: 100%;
+                background: #3b82f6;
+                color: white;
+                border: none;
+                padding: 16px 24px;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+                margin-bottom: 16px;
+            }
+
+            .action-button:hover {
+                background: #2563eb;
+                transform: translateY(-1px);
+            }
+
+            .action-button:disabled {
+                background: #9ca3af;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .status-message {
+                padding: 16px;
+                border-radius: 8px;
+                margin-bottom: 16px;
+                font-weight: 500;
+            }
+
+            .status-success {
+                background: #dcfce7;
+                border: 1px solid #bbf7d0;
+                color: #166534;
+            }
+
+            .status-error {
+                background: #fef2f2;
+                border: 1px solid #fecaca;
+                color: #991b1b;
+            }
+
+            .status-info {
+                background: #eff6ff;
+                border: 1px solid #bfdbfe;
+                color: #1e40af;
+            }
+
+            .install-section {
+                text-align: center;
+                padding: 24px;
+                background: #f1f5f9;
+                border-radius: 8px;
+                margin-top: 24px;
+            }
+
+            .install-button {
+                background: #059669;
+                color: white;
+                text-decoration: none;
+                padding: 12px 24px;
+                border-radius: 6px;
+                font-weight: 600;
+                display: inline-block;
+                transition: background 0.2s;
+            }
+
+            .install-button:hover {
+                background: #047857;
+            }
+
+            .copy-section {
+                margin-top: 24px;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border: 1px solid #dee2e6;
+            }
+
+            .copy-button {
+                background: #6b7280;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 14px;
+                cursor: pointer;
+                margin-top: 8px;
+            }
+
+            .copy-button:hover {
+                background: #4b5563;
+            }
+
+            @media (max-width: 640px) {
+                body {
+                    margin: 20px auto;
+                    padding: 16px;
+                }
+
+                .card {
+                    padding: 24px;
+                }
+
+                .header h1 {
+                    font-size: 24px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="header">
+                <h1>Add Prompt to Library</h1>
+                <p>Import this prompt to your Prompt Library extension</p>
+            </div>
+
+            <div id="loading" class="status-message status-info">
+                Loading prompt data...
+            </div>
+
+            <div
+                id="error"
+                class="status-message status-error"
+                style="display: none"
+            >
+                <strong>Error:</strong> <span id="error-message"></span>
+            </div>
+
+            <div
+                id="success"
+                class="status-message status-success"
+                style="display: none"
+            >
+                <strong>Success!</strong> Prompt added to your library.
+            </div>
+
+            <div id="prompt-container" style="display: none">
+                <div class="prompt-preview">
+                    <div class="prompt-title" id="prompt-title"></div>
+                    <div class="prompt-body" id="prompt-body"></div>
+                </div>
+
+                <button id="add-button" class="action-button">
+                    Add to My Library
+                </button>
+            </div>
+
+            <div id="extension-not-found" style="display: none">
+                <div class="install-section">
+                    <h3>Prompt Library Extension Required</h3>
+                    <p>
+                        You need to install the Prompt Library extension first.
+                    </p>
+                    <a
+                        href="https://chrome.google.com/webstore/detail/prompt-library-overlay/lonoagbmfindfckmbalijmnpdjdapiod"
+                        class="install-button"
+                        target="_blank"
+                    >
+                        Install Extension
+                    </a>
+                </div>
+
+                <div class="copy-section">
+                    <h4>Manual Import Option</h4>
+                    <p>
+                        If you have the extension installed, you can copy this
+                        data and import it manually:
+                    </p>
+                    <textarea
+                        id="manual-data"
+                        readonly
+                        style="
+                            width: 100%;
+                            height: 100px;
+                            margin-top: 8px;
+                            padding: 8px;
+                            border: 1px solid #ccc;
+                            border-radius: 4px;
+                        "
+                    ></textarea>
+                    <button id="copy-button" class="copy-button">
+                        Copy to Clipboard
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Extension ID - replace with your actual extension ID
+            const EXTENSION_ID = "lonoagbmfindfckmbalijmnpdjdapiod";
+
+            let promptData = null;
+
+            // Parse URL parameters
+            function getUrlParams() {
+                const params = new URLSearchParams(window.location.search);
+                return {
+                    prompt: params.get("prompt"),
+                    title: params.get("title") || "Imported Prompt",
+                    body: params.get("body"),
+                    folder: params.get("folder") || null,
+                };
+            }
+
+            // Decode base64 URL-safe data
+            function decodeBase64Url(str) {
+                try {
+                    // Replace URL-safe characters
+                    str = str.replace(/-/g, "+").replace(/_/g, "/");
+                    // Add padding if needed
+                    while (str.length % 4) {
+                        str += "=";
+                    }
+                    return atob(str);
+                } catch (error) {
+                    throw new Error("Invalid data encoding");
+                }
+            }
+
+            // Show error message
+            function showError(message) {
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("error").style.display = "block";
+                document.getElementById("error-message").textContent = message;
+            }
+
+            // Show success message
+            function showSuccess() {
+                document.getElementById("prompt-container").style.display =
+                    "none";
+                document.getElementById("success").style.display = "block";
+            }
+
+            // Check if extension is installed
+            async function checkExtensionInstalled() {
+                return new Promise((resolve) => {
+                    try {
+                        chrome.runtime.sendMessage(
+                            EXTENSION_ID,
+                            { type: "PING" },
+                            (response) => {
+                                if (chrome.runtime.lastError) {
+                                    resolve(false);
+                                } else {
+                                    resolve(response && response.success);
+                                }
+                            },
+                        );
+                    } catch (error) {
+                        resolve(false);
+                    }
+
+                    // Timeout after 2 seconds
+                    setTimeout(() => resolve(false), 2000);
+                });
+            }
+
+            // Send prompt to extension
+            async function sendToExtension(promptData) {
+                return new Promise((resolve, reject) => {
+                    chrome.runtime.sendMessage(
+                        EXTENSION_ID,
+                        {
+                            type: "IMPORT_EXTERNAL_PROMPT",
+                            data: promptData,
+                        },
+                        (response) => {
+                            if (chrome.runtime.lastError) {
+                                reject(
+                                    new Error(chrome.runtime.lastError.message),
+                                );
+                            } else if (response && response.success) {
+                                resolve(response);
+                            } else {
+                                reject(
+                                    new Error(
+                                        response?.error || "Import failed",
+                                    ),
+                                );
+                            }
+                        },
+                    );
+                });
+            }
+
+            // Copy to clipboard
+            function copyToClipboard(text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const button = document.getElementById("copy-button");
+                    const originalText = button.textContent;
+                    button.textContent = "Copied!";
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 2000);
+                });
+            }
+
+            // Initialize page
+            async function init() {
+                const params = getUrlParams();
+
+                try {
+                    // Parse prompt data
+                    if (params.prompt) {
+                        // Decode base64 encoded prompt data
+                        const decodedData = decodeBase64Url(params.prompt);
+                        promptData = JSON.parse(decodedData);
+                    } else if (params.body) {
+                        // Direct parameters
+                        promptData = {
+                            title: params.title,
+                            body: params.body,
+                            folderId: params.folder,
+                        };
+                    } else {
+                        throw new Error("No prompt data provided");
+                    }
+
+                    // Validate prompt data
+                    if (!promptData.title || !promptData.body) {
+                        throw new Error(
+                            "Invalid prompt data - missing title or body",
+                        );
+                    }
+
+                    // Display prompt preview
+                    document.getElementById("prompt-title").textContent =
+                        promptData.title;
+                    document.getElementById("prompt-body").textContent =
+                        promptData.body;
+                    document.getElementById("manual-data").value =
+                        JSON.stringify(promptData, null, 2);
+
+                    document.getElementById("loading").style.display = "none";
+                    document.getElementById("prompt-container").style.display =
+                        "block";
+
+                    // Check if extension is installed
+                    const extensionInstalled = await checkExtensionInstalled();
+
+                    if (!extensionInstalled) {
+                        document.getElementById("add-button").style.display =
+                            "none";
+                        document.getElementById(
+                            "extension-not-found",
+                        ).style.display = "block";
+                        return;
+                    }
+
+                    // Set up add button
+                    document
+                        .getElementById("add-button")
+                        .addEventListener("click", async () => {
+                            const button =
+                                document.getElementById("add-button");
+                            button.disabled = true;
+                            button.textContent = "Adding...";
+
+                            try {
+                                await sendToExtension(promptData);
+                                showSuccess();
+                            } catch (error) {
+                                showError(
+                                    `Failed to add prompt: ${error.message}`,
+                                );
+                                button.disabled = false;
+                                button.textContent = "Add to My Library";
+                            }
+                        });
+                } catch (error) {
+                    showError(error.message);
+                }
+            }
+
+            // Set up copy button
+            document
+                .getElementById("copy-button")
+                .addEventListener("click", () => {
+                    const data = document.getElementById("manual-data").value;
+                    copyToClipboard(data);
+                });
+
+            // Start initialization
+            init();
+        </script>
+    </body>
+</html>

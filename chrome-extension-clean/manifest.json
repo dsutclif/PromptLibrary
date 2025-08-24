@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "Prompt Library",
+  "version": "1.0.2",
+  "description": "Smart prompt manager for AI chats. Organize, schedule & insert prompts into ChatGPT, Claude, Gemini & Perplexity with folders.",
+
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs"],
+  
+  "externally_connectable": {
+    "matches": [
+      "https://*.github.io/*",
+      "https://*.githubusercontent.com/*"
+    ]
+  },
+  
+  "optional_host_permissions": [
+    "https://claude.ai/*",
+    "https://chatgpt.com/*", 
+    "https://gemini.google.com/*",
+    "https://perplexity.ai/*"
+  ],
+
+  "background": {
+    "service_worker": "background/service-worker-simple.js"
+  },
+
+
+
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
+
+  "action": {
+    "default_title": "Prompt Library"
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/llm-logos/claude.png",
+        "icons/llm-logos/chatgpt.png",
+        "icons/llm-logos/gemini.png",
+        "icons/llm-logos/perplexity.png"
+      ],
+      "matches": [
+        "*://claude.ai/*",
+        "*://chatgpt.com/*",
+        "*://gemini.google.com/*",
+        "*://perplexity.ai/*"
+      ]
+    }
+  ]
+}

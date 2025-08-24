@@ -1,0 +1,5 @@
+{
+  "title": "Code Reviewer",
+  "body": "Review this code for:\n- Performance issues\n- Security vulnerabilities\n- Best practices\n- Code readability\n- Potential bugs\n\nProvide specific feedback with examples and suggestions for improvement.",
+  "tags": ["code", "review", "development"]
+}
