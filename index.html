@@ -304,11 +304,12 @@
             try {
                 // Try to communicate with the extension
                 const response = await chrome.runtime.sendMessage(EXTENSION_ID, {
-                    type: 'ADD_PROMPT_FROM_BRIDGE',
+                    type: 'IMPORT_EXTERNAL_PROMPT',
                     data: {
                         title: promptData.title || 'Imported Prompt',
                         body: promptData.body || '',
                         folderId: null, // Will be added to root
+                        tags: promptData.tags || [],
                         source: 'email_bridge'
                     }
                 });
@@ -339,7 +340,7 @@
             
             // Check if extension is available
             try {
-                await chrome.runtime.sendMessage(EXTENSION_ID, { type: 'PING' });
+                await chrome.runtime.sendMessage(EXTENSION_ID, { type: 'GET_LIBRARY_DATA' });
                 showPromptPreview(promptData);
             } catch (error) {
                 console.error('Extension not available:', error);
