@@ -379,21 +379,21 @@ class PromptLibrarySidePanel {
         this.libraryData = response.data;
         
         // Ensure all required properties exist
-        if (!this.libraryData.folders) this.libraryData.folders = {};
+        if (!this.libraryData.folders) this.libraryData.folders = [];
         if (!this.libraryData.prompts) this.libraryData.prompts = {};
         if (!this.libraryData.settings) this.libraryData.settings = {};
       } else {
         console.error('Failed to load library data:', response);
         // Initialize with empty data - NO sample data
         this.libraryData = { 
-          folders: {}, 
+          folders: [], 
           prompts: {},
           settings: {}
         };
       }
       
       console.log('📚 Library data loaded:', {
-        folders: Object.keys(this.libraryData.folders).length,
+        folders: this.libraryData.folders.length,
         prompts: Object.keys(this.libraryData.prompts).length,
         settings: this.libraryData.settings
       });
@@ -402,7 +402,7 @@ class PromptLibrarySidePanel {
       console.error('Error loading library data:', error);
       // Initialize with empty data on error - NO sample data
       this.libraryData = { 
-        folders: {}, 
+        folders: [], 
         prompts: {},
         settings: {}
       };

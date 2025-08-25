@@ -230,6 +230,9 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
       // Add to prompts
       data.prompts[promptId] = newPrompt;
       
+      // Ensure folders is an array
+      if (!Array.isArray(data.folders)) data.folders = [];
+      
       // Save to storage
       await storage.set({ prompts: data.prompts, folders: data.folders });
       
