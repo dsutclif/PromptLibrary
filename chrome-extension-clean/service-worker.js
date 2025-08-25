@@ -313,8 +313,12 @@ async function executeScheduledPrompt(scheduleId) {
     const schedule = data.scheduled?.find(s => s.id === scheduleId);
     
     if (!schedule) {
-      console.error(`❌ Schedule ${scheduleId} not found in storage`);
+      console.warn(`⚠️ Schedule ${scheduleId} not found in storage - cleaning up orphaned alarm`);
       console.log('Available schedules:', data.scheduled?.map(s => s.id));
+      
+      // Clean up the orphaned alarm
+      await chrome.alarms.clear(scheduleId);
+      console.log(`🧹 Cleared orphaned alarm: ${scheduleId}`);
       return;
     }
     

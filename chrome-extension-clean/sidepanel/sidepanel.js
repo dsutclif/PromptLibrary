@@ -1868,7 +1868,7 @@ class PromptLibrarySidePanel {
       .sort((a, b) => new Date(a.scheduleTime) - new Date(b.scheduleTime));
   }
 
-  deleteSchedule(scheduleId) {
+  async deleteSchedule(scheduleId) {
     if (!this.libraryData.scheduled) return;
 
     const scheduleIndex = this.libraryData.scheduled.findIndex(s => s.id === scheduleId);
@@ -1878,6 +1878,14 @@ class PromptLibrarySidePanel {
     const prompt = this.libraryData.prompts[schedule.promptId];
     
     if (confirm(`Cancel scheduled prompt "${prompt?.title || 'Unknown'}"?`)) {
+      // Clear the Chrome alarm before removing from storage
+      try {
+        await chrome.alarms.clear(scheduleId);
+        console.log(`🧹 Cleared alarm for deleted schedule: ${scheduleId}`);
+      } catch (error) {
+        console.warn('Failed to clear alarm:', error);
+      }
+
       this.libraryData.scheduled.splice(scheduleIndex, 1);
       this.saveLibraryData();
       this.renderLibrary();
