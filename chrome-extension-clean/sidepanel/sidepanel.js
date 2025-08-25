@@ -470,31 +470,44 @@ class PromptLibrarySidePanel {
     const rootFolders = this.libraryData.folders?.filter(f => !f.parentId) || [];
     const rootPrompts = Object.values(this.libraryData.prompts || {}).filter(p => !p.folderId);
 
+    let html = '';
+    
+    // Add recently used prompts section
+    html += this.renderRecentlyUsed();
+    
+    // Add scheduled prompts section
+    html += this.renderScheduledPrompts();
+
     if (rootFolders.length === 0 && rootPrompts.length === 0) {
-      content.innerHTML = '<div class="empty-state">Your library is empty. Add a folder or prompt to get started.</div>';
-    } else {
-      let html = '';
-      
-      // Root folders
-      rootFolders.forEach(folder => {
-        html += this.renderFolder(folder);
-      });
-
-      // Root prompts (prompts without a folder)
-      if (rootPrompts.length > 0) {
-        rootPrompts.forEach(prompt => {
-          html += this.renderPrompt(prompt);
-        });
+      if (!html.trim()) {
+        content.innerHTML = '<div class="empty-state">Your library is empty. Add a folder or prompt to get started.</div>';
+        return;
       }
-
-      // Recently used section
-      html += this.renderRecentlyUsed();
-      
-      // Scheduled prompts section
-      html += this.renderScheduledPrompts();
-
-      content.innerHTML = html;
     }
+      
+    // Root folders
+    rootFolders.forEach(folder => {
+      html += this.renderFolder(folder);
+    });
+
+    // Root prompts (prompts without a folder)
+    if (rootPrompts.length > 0) {
+      html += `
+        <div class="folder-section">
+          <div class="folder-header">
+            <div class="folder-name">Uncategorized</div>
+          </div>
+          <div class="folder-content">
+      `;
+      
+      rootPrompts.forEach(prompt => {
+        html += this.renderPrompt(prompt);
+      });
+      
+      html += '</div></div>';
+    }
+
+    content.innerHTML = html;
 
     this.updateStats();
     this.attachEventListeners();
@@ -1743,9 +1756,10 @@ class PromptLibrarySidePanel {
     await this.saveLibraryData();
 
     // Ask service worker to handle the scheduling (so it persists)
+    const scheduleIdToUse = existingScheduleId || (this.libraryData.scheduled[this.libraryData.scheduled.length - 1]?.id);
     chrome.runtime.sendMessage({
       type: 'SCHEDULE_PROMPT_EXECUTION',
-      scheduleId: existingScheduleId || scheduledPrompt.id,
+      scheduleId: scheduleIdToUse,
       scheduleTime: scheduleDate.toISOString()
     });
 
