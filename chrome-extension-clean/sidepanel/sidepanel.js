@@ -472,20 +472,7 @@ class PromptLibrarySidePanel {
 
     let html = '';
     
-    // Add recently used prompts section
-    html += this.renderRecentlyUsed();
-    
-    // Add scheduled prompts section
-    html += this.renderScheduledPrompts();
-
-    if (rootFolders.length === 0 && rootPrompts.length === 0) {
-      if (!html.trim()) {
-        content.innerHTML = '<div class="empty-state">Your library is empty. Add a folder or prompt to get started.</div>';
-        return;
-      }
-    }
-      
-    // Root folders
+    // Root folders FIRST
     rootFolders.forEach(folder => {
       html += this.renderFolder(folder);
     });
@@ -505,6 +492,18 @@ class PromptLibrarySidePanel {
       });
       
       html += '</div></div>';
+    }
+    
+    // Add recently used prompts section AFTER folders
+    html += this.renderRecentlyUsed();
+    
+    // Add scheduled prompts section AFTER recently used
+    html += this.renderScheduledPrompts();
+    
+    // Show empty state only if no content at all
+    if (!html.trim() && rootFolders.length === 0 && rootPrompts.length === 0) {
+      content.innerHTML = '<div class="empty-state">Your library is empty. Add a folder or prompt to get started.</div>';
+      return;
     }
 
     content.innerHTML = html;
@@ -1626,10 +1625,18 @@ class PromptLibrarySidePanel {
 
   showSchedulePromptModal(prompt, existingSchedule = null) {
     const now = new Date();
+    // Use current local time, not UTC
     const defaultTime = existingSchedule 
       ? new Date(existingSchedule.scheduleTime)
-      : now; // Current time or existing time
-    const timeString = defaultTime.toISOString().slice(0, 16);
+      : now;
+    
+    // Format for datetime-local input (needs local time, not UTC)
+    const year = defaultTime.getFullYear();
+    const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
+    const day = String(defaultTime.getDate()).padStart(2, '0');
+    const hours = String(defaultTime.getHours()).padStart(2, '0');
+    const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
+    const timeString = `${year}-${month}-${day}T${hours}:${minutes}`;
     const isAutoSubmit = existingSchedule ? existingSchedule.autoSubmit : true;
     
     const modalHtml = `

@@ -301,17 +301,16 @@ async function executeScheduledPrompt(scheduleId) {
   try {
     console.log(`🚀 Executing scheduled prompt: ${scheduleId}`);
     
-    // Get library data to find the schedule
-    const data = await storage.get(['libraryData']);
-    const libraryData = data.libraryData || { prompts: {}, folders: {}, scheduled: [] };
-    const schedule = libraryData.scheduled?.find(s => s.id === scheduleId);
+    // Get library data the same way sidepanel saves it
+    const data = await storage.get(['scheduled', 'prompts', 'settings']);
+    const schedule = data.scheduled?.find(s => s.id === scheduleId);
     
     if (!schedule) {
       console.log(`❌ Schedule ${scheduleId} not found`);
       return;
     }
     
-    const prompt = libraryData.prompts?.[schedule.promptId];
+    const prompt = data.prompts?.[schedule.promptId];
     if (!prompt) {
       console.log(`❌ Prompt ${schedule.promptId} not found`);
       return;
@@ -340,7 +339,7 @@ async function executeScheduledPrompt(scheduleId) {
         perplexity: 'https://www.perplexity.ai'
       };
       
-      const preferredLLM = libraryData.settings?.goToLLM || 'chatgpt';
+      const preferredLLM = data.settings?.goToLLM || 'chatgpt';
       const url = llmUrls[preferredLLM];
       
       if (url) {
@@ -388,8 +387,8 @@ async function executeScheduledPrompt(scheduleId) {
     }
     
     // Remove from scheduled list after execution
-    libraryData.scheduled = libraryData.scheduled.filter(s => s.id !== scheduleId);
-    await storage.set({ libraryData });
+    const updatedScheduled = (data.scheduled || []).filter(s => s.id !== scheduleId);
+    await storage.set({ scheduled: updatedScheduled });
     
     console.log(`✅ Scheduled prompt ${scheduleId} executed and removed`);
     
@@ -401,9 +400,9 @@ async function executeScheduledPrompt(scheduleId) {
 // Restore scheduled prompts on startup
 async function restoreScheduledPrompts() {
   try {
-    const data = await storage.get(['libraryData']);
-    const libraryData = data.libraryData || { prompts: {}, folders: {}, scheduled: [] };
-    const scheduled = libraryData.scheduled || [];
+    // Get data the same way sidepanel saves it
+    const data = await storage.get(['scheduled', 'prompts', 'folders', 'settings']);
+    const scheduled = data.scheduled || [];
     const now = new Date();
     
     let restoredCount = 0;
@@ -427,8 +426,8 @@ async function restoreScheduledPrompts() {
     
     // Clean up expired schedules
     if (removedCount > 0) {
-      libraryData.scheduled = libraryData.scheduled.filter(s => new Date(s.scheduleTime) > now);
-      await storage.set({ libraryData });
+      const cleanedScheduled = scheduled.filter(s => new Date(s.scheduleTime) > now);
+      await storage.set({ scheduled: cleanedScheduled });
     }
     
     console.log(`⏰ Restored ${restoredCount} scheduled prompts, removed ${removedCount} expired`);
