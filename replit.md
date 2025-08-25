@@ -5,7 +5,7 @@ A Chrome MV3 extension designed to streamline prompt management and insertion in
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
-Development workflow: Always update prompt-library-clean.zip with every code change for Chrome Web Store submission readiness.
+Development workflow: Always update chrome-extension-clean.zip with every code change for Chrome Web Store submission readiness.
 
 ## Prompt Link Creation Process
 **Complete Workflow for Creating New GitHub Pages Prompt Links:**
