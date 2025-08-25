@@ -327,11 +327,8 @@ async function executeScheduledPrompt(scheduleId) {
     console.log(`📝 Found prompt: ${prompt.title}`);
     console.log(`⚙️ Auto-submit: ${schedule.autoSubmit}`);
     
-    // Open side panel first (so user sees what's happening)
-    await chrome.sidePanel.open({ windowId: (await chrome.windows.getCurrent()).id });
-    
-    // Wait a moment for panel to load
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Note: We can't open side panel programmatically from scheduled execution
+    // as it requires user gesture. The execution will happen in background.
     
     // Get current tab
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
