@@ -98,7 +98,32 @@ async function injectContentScriptIfNeeded(tab) {
   }
 }
 
-// Message handling with comprehensive error boundaries
+// External message handling (from websites like bridge pages)
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  console.log('External message received:', message, 'from:', sender.origin);
+  
+  if (!message || !message.type) {
+    sendResponse({ success: false, error: 'Invalid message format' });
+    return;
+  }
+  
+  // Handle external messages (only specific types allowed for security)
+  switch (message.type) {
+    case 'GET_LIBRARY_DATA':
+      handleGetLibraryData().then(sendResponse);
+      return true; // Will respond asynchronously
+      
+    case 'IMPORT_EXTERNAL_PROMPT':
+      handleExternalPromptImport(message.data).then(sendResponse);
+      return true; // Will respond asynchronously
+      
+    default:
+      sendResponse({ success: false, error: 'External message type not allowed' });
+      return;
+  }
+});
+
+// Internal message handling (from extension components)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || !message.type) {
     sendResponse({ success: false, error: 'Invalid message format' });
