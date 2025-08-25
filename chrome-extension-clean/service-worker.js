@@ -350,16 +350,40 @@ async function executeScheduledPrompt(scheduleId) {
       }
     }
     
-    // Insert the prompt
-    const insertResult = await handleInsertPrompt({
-      text: prompt.body,
-      tabId: targetTabId
-    });
+    // Insert the prompt using proper Chrome API
+    let insertResult = { success: false };
+    
+    if (isSupportedLLM((await chrome.tabs.get(targetTabId)).url)) {
+      // Inject content script
+      await chrome.scripting.executeScript({
+        target: { tabId: targetTabId },
+        files: ['content/content-script-main.js']
+      });
+      
+      // Wait for script to load
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Send insert message
+      try {
+        insertResult = await chrome.tabs.sendMessage(targetTabId, {
+          type: 'INSERT_PROMPT',
+          text: prompt.body
+        });
+      } catch (error) {
+        console.error('Failed to insert prompt:', error);
+      }
+    }
     
     if (insertResult.success && schedule.autoSubmit) {
       // Auto-submit if enabled
       setTimeout(async () => {
-        await handlePromptSubmission({ tabId: targetTabId });
+        try {
+          await chrome.tabs.sendMessage(targetTabId, {
+            type: 'SUBMIT_PROMPT'
+          });
+        } catch (error) {
+          console.error('Failed to auto-submit:', error);
+        }
       }, 500);
     }
     
