@@ -90,6 +90,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse(navResult);
           break;
           
+        case 'SUBMIT_PROMPT':
+          // Handle auto-submit for scheduled prompts
+          console.log('📤 Auto-submitting scheduled prompt');
+          const submitResult = await handlePromptSubmission(message);
+          sendResponse(submitResult);
+          break;
+          
         default:
           console.warn('❓ Unknown internal message type:', message.type);
           sendResponse({ success: false, error: 'Unknown message type' });
@@ -212,6 +219,36 @@ async function handleLLMNavigation(message) {
     
   } catch (error) {
     console.error('❌ Failed to navigate to LLM:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle auto-submit for scheduled prompts
+async function handlePromptSubmission(message) {
+  try {
+    const tabId = message.tabId || (await getCurrentTab()).id;
+    const tab = await chrome.tabs.get(tabId);
+    
+    if (isSupportedLLM(tab.url)) {
+      // Inject content script and submit
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content/content-script-main.js']
+      });
+      
+      // Wait a moment for script to load, then submit
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const response = await chrome.tabs.sendMessage(tabId, {
+        type: 'SUBMIT_PROMPT'
+      });
+      
+      return { success: true, submitted: response?.success };
+    } else {
+      return { success: false, error: 'Not on supported LLM platform' };
+    }
+  } catch (error) {
+    console.error('❌ Failed to submit prompt:', error);
     return { success: false, error: error.message };
   }
 }
