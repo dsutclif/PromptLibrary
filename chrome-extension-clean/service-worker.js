@@ -260,34 +260,37 @@ async function handlePromptSubmission(message) {
   }
 }
 
-// Active scheduled timeouts (to prevent duplicates)
-const activeSchedules = new Map();
-
-// Handle scheduled prompt execution
+// Handle scheduled prompt execution using Chrome alarms for persistence
 async function handleScheduleExecution(message) {
   try {
     const { scheduleId, scheduleTime } = message;
     const scheduleDate = new Date(scheduleTime);
     const now = new Date();
-    const timeoutMs = scheduleDate.getTime() - now.getTime();
+    const delayInMinutes = (scheduleDate.getTime() - now.getTime()) / 60000;
     
-    if (timeoutMs <= 0) {
+    if (delayInMinutes <= 0) {
       return { success: false, error: 'Schedule time has passed' };
     }
     
-    // Clear existing timeout if updating
-    if (activeSchedules.has(scheduleId)) {
-      clearTimeout(activeSchedules.get(scheduleId));
+    // Clear existing alarm if updating
+    await chrome.alarms.clear(scheduleId);
+    
+    // Create alarm for scheduled execution
+    // Chrome alarms require at least 1 minute delay in production
+    // For shorter delays, we'll use the minimum and check the actual time when it fires
+    if (delayInMinutes < 1) {
+      // For very short delays, set to 1 minute and check time when fired
+      chrome.alarms.create(scheduleId, { 
+        delayInMinutes: 1,
+        periodInMinutes: 0.5 // Check every 30 seconds
+      });
+    } else {
+      chrome.alarms.create(scheduleId, { 
+        when: scheduleDate.getTime() 
+      });
     }
     
-    // Set new timeout
-    const timeoutId = setTimeout(async () => {
-      await executeScheduledPrompt(scheduleId);
-      activeSchedules.delete(scheduleId);
-    }, timeoutMs);
-    
-    activeSchedules.set(scheduleId, timeoutId);
-    console.log(`⏰ Scheduled prompt ${scheduleId} will execute in ${Math.round(timeoutMs/1000)}s`);
+    console.log(`⏰ Scheduled prompt ${scheduleId} will execute at ${scheduleDate.toLocaleString()}`);
     
     return { success: true };
   } catch (error) {
@@ -330,7 +333,7 @@ async function executeScheduledPrompt(scheduleId) {
     
     let targetTabId = activeTab?.id;
     
-    // If not on LLM platform, open preferred LLM
+    // If not on LLM platform, open preferred LLM in new tab
     if (!isLLMPlatform) {
       const llmUrls = {
         claude: 'https://claude.ai',
@@ -343,9 +346,10 @@ async function executeScheduledPrompt(scheduleId) {
       const url = llmUrls[preferredLLM];
       
       if (url) {
-        await chrome.tabs.update({ url });
+        // Open in new tab instead of updating current tab
+        const newTab = await chrome.tabs.create({ url, active: true });
         await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for load
-        targetTabId = (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id;
+        targetTabId = newTab.id;
       }
     }
     
@@ -390,6 +394,9 @@ async function executeScheduledPrompt(scheduleId) {
     const updatedScheduled = (data.scheduled || []).filter(s => s.id !== scheduleId);
     await storage.set({ scheduled: updatedScheduled });
     
+    // Clear the alarm
+    await chrome.alarms.clear(scheduleId);
+    
     console.log(`✅ Scheduled prompt ${scheduleId} executed and removed`);
     
   } catch (error) {
@@ -407,6 +414,10 @@ async function restoreScheduledPrompts() {
     
     let restoredCount = 0;
     let removedCount = 0;
+    const validSchedules = [];
+    
+    // Clear all existing alarms first
+    await chrome.alarms.clearAll();
     
     for (const schedule of scheduled) {
       const scheduleDate = new Date(schedule.scheduleTime);
@@ -416,6 +427,7 @@ async function restoreScheduledPrompts() {
         removedCount++;
       } else {
         // Restore active schedules
+        validSchedules.push(schedule);
         await handleScheduleExecution({
           scheduleId: schedule.id,
           scheduleTime: schedule.scheduleTime
@@ -424,10 +436,9 @@ async function restoreScheduledPrompts() {
       }
     }
     
-    // Clean up expired schedules
-    if (removedCount > 0) {
-      const cleanedScheduled = scheduled.filter(s => new Date(s.scheduleTime) > now);
-      await storage.set({ scheduled: cleanedScheduled });
+    // Update storage with only valid schedules
+    if (removedCount > 0 || validSchedules.length !== scheduled.length) {
+      await storage.set({ scheduled: validSchedules });
     }
     
     console.log(`⏰ Restored ${restoredCount} scheduled prompts, removed ${removedCount} expired`);
@@ -492,6 +503,29 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
     }
   } else {
     sendResponse({ success: true, message: 'Hello from extension!' });
+  }
+});
+
+// Listen for alarms (scheduled prompts)
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  console.log('⏰ Alarm fired:', alarm.name);
+  
+  // Check if this is a scheduled prompt
+  const data = await storage.get(['scheduled']);
+  const schedule = data.scheduled?.find(s => s.id === alarm.name);
+  
+  if (schedule) {
+    // Check if it's time to execute (for short delays with periodic checks)
+    const now = new Date();
+    const scheduleTime = new Date(schedule.scheduleTime);
+    
+    if (scheduleTime <= now) {
+      // Execute the scheduled prompt
+      await executeScheduledPrompt(alarm.name);
+    } else {
+      // Not time yet, will check again on next alarm
+      console.log(`⏳ Not time yet for ${alarm.name}, scheduled for ${scheduleTime.toLocaleString()}`);
+    }
   }
 });
 
