@@ -1756,7 +1756,14 @@ class PromptLibrarySidePanel {
     await this.saveLibraryData();
 
     // Ask service worker to handle the scheduling (so it persists)
-    const scheduleIdToUse = existingScheduleId || (this.libraryData.scheduled[this.libraryData.scheduled.length - 1]?.id);
+    let scheduleIdToUse;
+    if (existingScheduleId) {
+      scheduleIdToUse = existingScheduleId;
+    } else {
+      // Get the ID of the newly created schedule
+      scheduleIdToUse = this.libraryData.scheduled[this.libraryData.scheduled.length - 1]?.id;
+    }
+    
     chrome.runtime.sendMessage({
       type: 'SCHEDULE_PROMPT_EXECUTION',
       scheduleId: scheduleIdToUse,
