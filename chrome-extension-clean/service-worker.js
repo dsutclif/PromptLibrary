@@ -48,6 +48,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true; // Async response
       
     case 'UPDATE_LIBRARY_DATA':
+    case 'SAVE_LIBRARY_DATA': // Handle both message types
       storage.set(message.data).then(() => {
         sendResponse({ success: true });
       });
@@ -93,6 +94,16 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
       await storage.set({ prompts: data.prompts, folders: data.folders });
       
       console.log('✅ Prompt saved to extension library');
+      
+      // Notify side panel to refresh (if open)
+      try {
+        await chrome.runtime.sendMessage({ type: 'EXTERNAL_DATA_UPDATED' });
+        console.log('📡 Notified side panel of new data');
+      } catch (error) {
+        // Side panel might not be open - this is OK
+        console.log('📡 Side panel not open to receive notification');
+      }
+      
       sendResponse({ success: true, message: 'Prompt imported successfully!' });
     } catch (error) {
       console.error('❌ Failed to import prompt:', error);

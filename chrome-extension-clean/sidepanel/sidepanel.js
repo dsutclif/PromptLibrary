@@ -19,6 +19,7 @@ class PromptLibrarySidePanel {
     await this.loadLibraryData();
     this.setupEventListeners();
     this.setupImageSources();
+    this.setupDataUpdateListener(); // Listen for external updates
     
     this.renderLibrary();
     this.checkForAutoLLMModal();
@@ -28,6 +29,19 @@ class PromptLibrarySidePanel {
     
     // Set up direct tab navigation detection
     this.setupNavigationDetection();
+  }
+
+  setupDataUpdateListener() {
+    // Listen for notifications from service worker about external data updates
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'EXTERNAL_DATA_UPDATED') {
+        console.log('📡 Received external data update notification, refreshing...');
+        this.loadLibraryData().then(() => {
+          this.renderLibrary();
+          this.showToast('New prompt imported!', 'success');
+        });
+      }
+    });
   }
 
   async checkAndShowBanner() {
