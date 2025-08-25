@@ -22,7 +22,7 @@
   ],
 
   "background": {
-    "service_worker": "background/test-minimal.js"
+    "service_worker": "service-worker.js"
   },
 
 
