@@ -22,7 +22,7 @@
   ],
 
   "background": {
-    "service_worker": "background/test-service-worker.js"
+    "service_worker": "background/service-worker-simple.js"
   },
 
 
