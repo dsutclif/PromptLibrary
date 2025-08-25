@@ -266,31 +266,34 @@ async function handleScheduleExecution(message) {
     const { scheduleId, scheduleTime } = message;
     const scheduleDate = new Date(scheduleTime);
     const now = new Date();
-    const delayInMinutes = (scheduleDate.getTime() - now.getTime()) / 60000;
+    const delayMs = scheduleDate.getTime() - now.getTime();
     
-    if (delayInMinutes <= 0) {
-      return { success: false, error: 'Schedule time has passed' };
+    if (delayMs <= 0) {
+      // If time has passed, execute immediately
+      console.log(`⚡ Executing immediately - scheduled time has passed`);
+      setTimeout(() => executeScheduledPrompt(scheduleId), 100);
+      return { success: true };
     }
     
     // Clear existing alarm if updating
     await chrome.alarms.clear(scheduleId);
+    console.log(`🧹 Cleared existing alarm for ${scheduleId}`);
     
-    // Create alarm for scheduled execution
-    // Chrome alarms require at least 1 minute delay in production
-    // For shorter delays, we'll use the minimum and check the actual time when it fires
-    if (delayInMinutes < 1) {
-      // For very short delays, set to 1 minute and check time when fired
-      chrome.alarms.create(scheduleId, { 
-        delayInMinutes: 1,
-        periodInMinutes: 0.5 // Check every 30 seconds
-      });
+    // Create alarm for the exact scheduled time
+    const alarmInfo = {
+      when: scheduleDate.getTime()
+    };
+    
+    chrome.alarms.create(scheduleId, alarmInfo);
+    console.log(`⏰ Created alarm ${scheduleId} for ${scheduleDate.toLocaleString()} (in ${Math.round(delayMs/1000)}s)`);
+    
+    // Verify alarm was created
+    const createdAlarm = await chrome.alarms.get(scheduleId);
+    if (createdAlarm) {
+      console.log(`✅ Alarm confirmed: ${createdAlarm.name} at ${new Date(createdAlarm.scheduledTime).toLocaleString()}`);
     } else {
-      chrome.alarms.create(scheduleId, { 
-        when: scheduleDate.getTime() 
-      });
+      console.error(`❌ Failed to create alarm ${scheduleId}`);
     }
-    
-    console.log(`⏰ Scheduled prompt ${scheduleId} will execute at ${scheduleDate.toLocaleString()}`);
     
     return { success: true };
   } catch (error) {
@@ -302,22 +305,27 @@ async function handleScheduleExecution(message) {
 // Execute a scheduled prompt
 async function executeScheduledPrompt(scheduleId) {
   try {
-    console.log(`🚀 Executing scheduled prompt: ${scheduleId}`);
+    console.log(`🚀 EXECUTING SCHEDULED PROMPT: ${scheduleId}`);
     
     // Get library data the same way sidepanel saves it
     const data = await storage.get(['scheduled', 'prompts', 'settings']);
     const schedule = data.scheduled?.find(s => s.id === scheduleId);
     
     if (!schedule) {
-      console.log(`❌ Schedule ${scheduleId} not found`);
+      console.error(`❌ Schedule ${scheduleId} not found in storage`);
+      console.log('Available schedules:', data.scheduled?.map(s => s.id));
       return;
     }
     
     const prompt = data.prompts?.[schedule.promptId];
     if (!prompt) {
-      console.log(`❌ Prompt ${schedule.promptId} not found`);
+      console.error(`❌ Prompt ${schedule.promptId} not found in storage`);
+      console.log('Available prompts:', Object.keys(data.prompts || {}));
       return;
     }
+    
+    console.log(`📝 Found prompt: ${prompt.title}`);
+    console.log(`⚙️ Auto-submit: ${schedule.autoSubmit}`);
     
     // Open side panel first (so user sees what's happening)
     await chrome.sidePanel.open({ windowId: (await chrome.windows.getCurrent()).id });
@@ -397,7 +405,14 @@ async function executeScheduledPrompt(scheduleId) {
     // Clear the alarm
     await chrome.alarms.clear(scheduleId);
     
-    console.log(`✅ Scheduled prompt ${scheduleId} executed and removed`);
+    console.log(`✅ SCHEDULED PROMPT ${scheduleId} EXECUTED AND REMOVED`);
+    
+    // Notify sidepanel to refresh if it's open
+    try {
+      chrome.runtime.sendMessage({ type: 'SCHEDULED_PROMPT_EXECUTED' });
+    } catch (e) {
+      // Sidepanel might not be open, that's OK
+    }
     
   } catch (error) {
     console.error(`❌ Failed to execute scheduled prompt ${scheduleId}:`, error);
@@ -508,24 +523,24 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
 
 // Listen for alarms (scheduled prompts)
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  console.log('⏰ Alarm fired:', alarm.name);
+  console.log('🔔 ALARM FIRED:', alarm.name, 'at', new Date().toLocaleString());
   
-  // Check if this is a scheduled prompt
-  const data = await storage.get(['scheduled']);
-  const schedule = data.scheduled?.find(s => s.id === alarm.name);
-  
-  if (schedule) {
-    // Check if it's time to execute (for short delays with periodic checks)
-    const now = new Date();
-    const scheduleTime = new Date(schedule.scheduleTime);
+  try {
+    // Check if this is a scheduled prompt
+    const data = await storage.get(['scheduled']);
+    const schedule = data.scheduled?.find(s => s.id === alarm.name);
     
-    if (scheduleTime <= now) {
-      // Execute the scheduled prompt
+    if (schedule) {
+      console.log(`📋 Found schedule: ${schedule.promptId} scheduled for ${schedule.scheduleTime}`);
+      // Execute the scheduled prompt immediately when alarm fires
       await executeScheduledPrompt(alarm.name);
     } else {
-      // Not time yet, will check again on next alarm
-      console.log(`⏳ Not time yet for ${alarm.name}, scheduled for ${scheduleTime.toLocaleString()}`);
+      console.log(`❓ No schedule found for alarm: ${alarm.name}`);
+      // List all scheduled for debugging
+      console.log('📋 Current schedules:', data.scheduled?.map(s => s.id));
     }
+  } catch (error) {
+    console.error('❌ Error in alarm listener:', error);
   }
 });
 
