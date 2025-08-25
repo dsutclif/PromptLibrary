@@ -1,4 +1,5 @@
 // Background service worker for Prompt Library extension
+console.log('🚀 SERVICE WORKER STARTING...');
 //
 // CHROME WEB STORE PERMISSION JUSTIFICATIONS:
 //
@@ -99,6 +100,7 @@ async function injectContentScriptIfNeeded(tab) {
 }
 
 // External message handling (from bridge pages)
+console.log('🔧 REGISTERING EXTERNAL MESSAGE HANDLER...');
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   console.log('🌐 EXTERNAL MESSAGE received:', message.type, 'from:', sender.origin);
   
@@ -635,5 +637,5 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
 // Removed complex permission checking function - now handled directly in sidepanel for better reliability
 
-console.log('✅ Background service worker initialized');
-console.log('🌐 Unified message handler ready for internal & external communication');
+console.log('✅ SERVICE WORKER FULLY INITIALIZED');
+console.log('🌐 EXTERNAL MESSAGE HANDLER REGISTERED');
