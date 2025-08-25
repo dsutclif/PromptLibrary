@@ -73,7 +73,8 @@ class PromptLibrarySidePanel {
       const isLLMSite = url.includes('claude.ai') || 
                         url.includes('chatgpt.com') || 
                         url.includes('gemini.google.com') || 
-                        url.includes('perplexity.ai');
+                        url.includes('perplexity.ai') ||
+                        url.includes('grok.com');
 
       console.log('Is LLM site:', isLLMSite);
 
@@ -211,7 +212,7 @@ class PromptLibrarySidePanel {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       const currentUrl = tab.url;
-      const supportedDomains = ['claude.ai', 'chatgpt.com', 'gemini.google.com', 'perplexity.ai'];
+      const supportedDomains = ['claude.ai', 'chatgpt.com', 'gemini.google.com', 'perplexity.ai', 'grok.com'];
       const isLLMPlatform = supportedDomains.some(domain => currentUrl.includes(domain));
       
       if (!isLLMPlatform && !this.libraryData.settings?.goToLLM) {
@@ -370,7 +371,8 @@ class PromptLibrarySidePanel {
       claude: 'claude.png',
       chatgpt: 'chatgpt.png', 
       gemini: 'gemini.png',
-      perplexity: 'perplexity.png'
+      perplexity: 'perplexity.png',
+      grok: 'grok.png'
     };
 
     Object.entries(logoMappings).forEach(([llm, filename]) => {
@@ -1389,7 +1391,8 @@ class PromptLibrarySidePanel {
         claude: 'https://claude.ai',
         chatgpt: 'https://chatgpt.com',
         gemini: 'https://gemini.google.com',
-        perplexity: 'https://www.perplexity.ai'
+        perplexity: 'https://www.perplexity.ai',
+        grok: 'https://grok.com'
       };
       
       const url = urls[this.selectedLLM];
