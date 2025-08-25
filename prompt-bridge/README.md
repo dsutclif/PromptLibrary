@@ -24,18 +24,18 @@ const encoded = btoa(JSON.stringify(promptData))
     .replace(/\//g, '_')
     .replace(/=/g, '');
 
-const link = `https://yourusername.github.io/prompt-bridge/?prompt=${encoded}`;
+const link = `https://dsutclif.github.io/PromptLibrary/?prompt=${encoded}`;
 ```
 
 ### Method 2: URL Parameters
 ```
-https://yourusername.github.io/prompt-bridge/?title=Example%20Prompt&body=This%20is%20the%20prompt%20content
+https://dsutclif.github.io/PromptLibrary/?title=Example%20Prompt&body=This%20is%20the%20prompt%20content
 ```
 
 ## Email Template Example
 
 ```html
-<a href="https://yourusername.github.io/prompt-bridge/?prompt=BASE64_DATA_HERE">
+<a href="https://dsutclif.github.io/PromptLibrary/?prompt=BASE64_DATA_HERE">
     📋 Add This Prompt to Your Library
 </a>
 ```

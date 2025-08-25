@@ -6,7 +6,7 @@
  * 2. Use generateImportLink() to create links for your prompts
  */
 
-const BASE_URL = 'https://YOUR_GITHUB_USERNAME.github.io/prompt-bridge/';
+const BASE_URL = 'https://dsutclif.github.io/PromptLibrary/';
 
 /**
  * Generate an import link for a prompt
