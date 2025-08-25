@@ -363,6 +363,17 @@ class PromptLibrarySidePanel {
         this.hideAllModals();
       }
     });
+
+    // LLM Quick Link handlers
+    document.querySelectorAll('.llm-quick-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = link.getAttribute('data-llm-url');
+        if (url) {
+          chrome.tabs.create({ url: url });
+        }
+      });
+    });
   }
 
   setupImageSources() {
