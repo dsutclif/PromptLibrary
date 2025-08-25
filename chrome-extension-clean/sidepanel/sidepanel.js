@@ -214,8 +214,8 @@ class PromptLibrarySidePanel {
       const supportedDomains = ['claude.ai', 'chatgpt.com', 'gemini.google.com', 'perplexity.ai'];
       const isLLMPlatform = supportedDomains.some(domain => currentUrl.includes(domain));
       
-      if (!isLLMPlatform && !this.libraryData.settings?.goToLLM) {
-        // Not on LLM platform and no preferred LLM set - show settings
+      if (!isLLMPlatform && !this.libraryData.settings?.goToLLM && Object.keys(this.libraryData.prompts).length > 0) {
+        // Not on LLM platform, no preferred LLM set, and user has prompts - show settings
         setTimeout(() => {
           this.showLLMModal();
         }, 500);
@@ -377,13 +377,35 @@ class PromptLibrarySidePanel {
       const response = await chrome.runtime.sendMessage({ type: 'GET_LIBRARY_DATA' });
       if (response && response.success) {
         this.libraryData = response.data;
+        
+        // Ensure all required properties exist
+        if (!this.libraryData.folders) this.libraryData.folders = {};
+        if (!this.libraryData.prompts) this.libraryData.prompts = {};
+        if (!this.libraryData.settings) this.libraryData.settings = {};
       } else {
         console.error('Failed to load library data:', response);
-        this.loadSampleData();
+        // Initialize with empty data - NO sample data
+        this.libraryData = { 
+          folders: {}, 
+          prompts: {},
+          settings: {}
+        };
       }
+      
+      console.log('📚 Library data loaded:', {
+        folders: Object.keys(this.libraryData.folders).length,
+        prompts: Object.keys(this.libraryData.prompts).length,
+        settings: this.libraryData.settings
+      });
+      
     } catch (error) {
       console.error('Error loading library data:', error);
-      this.loadSampleData();
+      // Initialize with empty data on error - NO sample data
+      this.libraryData = { 
+        folders: {}, 
+        prompts: {},
+        settings: {}
+      };
     }
   }
 

@@ -43,7 +43,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   try {
     switch (message.type) {
       case 'GET_LIBRARY_DATA':
-        const data = await storage.get(['folders', 'prompts', 'recentPromptId']);
+        const data = await storage.get(['folders', 'prompts', 'recentPromptId', 'settings']);
         sendResponse({ success: true, data });
         break;
         
@@ -65,6 +65,13 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         console.log('📖 Reading current input from chat window');
         const readResult = await handleReadCurrentInput(message);
         sendResponse(readResult);
+        break;
+        
+      case 'OPEN_LLM_AND_CLOSE_PANEL':
+        // Handle LLM navigation from settings modal
+        console.log('🌐 Opening LLM and closing panel:', message.llm);
+        const navResult = await handleLLMNavigation(message);
+        sendResponse(navResult);
         break;
         
       default:
@@ -162,6 +169,33 @@ function isSupportedLLM(url) {
     return supportedDomains.some(domain => urlObj.hostname.includes(domain));
   } catch {
     return false;
+  }
+}
+
+// Handle LLM navigation from settings modal
+async function handleLLMNavigation(message) {
+  try {
+    const urls = {
+      claude: 'https://claude.ai',
+      chatgpt: 'https://chatgpt.com',
+      gemini: 'https://gemini.google.com',
+      perplexity: 'https://www.perplexity.ai'
+    };
+    
+    const url = urls[message.llm];
+    if (!url) {
+      return { success: false, error: 'Unknown LLM type' };
+    }
+    
+    // Navigate current tab to LLM
+    await chrome.tabs.update(message.currentTabId, { url });
+    
+    console.log(`✅ Navigated to ${message.llm}: ${url}`);
+    return { success: true };
+    
+  } catch (error) {
+    console.error('❌ Failed to navigate to LLM:', error);
+    return { success: false, error: error.message };
   }
 }
 
