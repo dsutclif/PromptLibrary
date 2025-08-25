@@ -17,14 +17,20 @@ const storage = new Storage();
 async function initializeStorage() {
   const data = await storage.get(['version']);
   if (!data.version) {
+    console.log('🔧 Initializing storage for first time...');
     await storage.set({
       version: 1,
       folders: [], // No default folders - clean start
       prompts: {},
-      recentPromptId: null
+      recentPromptId: null,
+      settings: {} // Include settings in initialization
     });
+    console.log('✅ Storage initialized');
   }
 }
+
+// Initialize storage when service worker starts
+initializeStorage();
 
 // Handle extension icon clicks - open side panel
 chrome.action.onClicked.addListener(async (tab) => {
@@ -37,51 +43,62 @@ chrome.action.onClicked.addListener(async (tab) => {
 });
 
 // Handle internal messages from side panel
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('🔧 INTERNAL MESSAGE:', message.type);
   
-  try {
-    switch (message.type) {
-      case 'GET_LIBRARY_DATA':
-        const data = await storage.get(['folders', 'prompts', 'recentPromptId', 'settings']);
-        sendResponse({ success: true, data });
-        break;
-        
-      case 'UPDATE_LIBRARY_DATA':
-      case 'SAVE_LIBRARY_DATA': // Handle both message types
-        await storage.set(message.data);
-        sendResponse({ success: true });
-        break;
-        
-      case 'INSERT_PROMPT':
-        // Handle prompt insertion into LLM chat windows
-        console.log('🚀 Inserting prompt into chat window:', message.text?.substring(0, 50) + '...');
-        const insertResult = await handlePromptInsertion(message);
-        sendResponse(insertResult);
-        break;
-        
-      case 'READ_CURRENT_INPUT':
-        // Handle reading current input from chat window
-        console.log('📖 Reading current input from chat window');
-        const readResult = await handleReadCurrentInput(message);
-        sendResponse(readResult);
-        break;
-        
-      case 'OPEN_LLM_AND_CLOSE_PANEL':
-        // Handle LLM navigation from settings modal
-        console.log('🌐 Opening LLM and closing panel:', message.llm);
-        const navResult = await handleLLMNavigation(message);
-        sendResponse(navResult);
-        break;
-        
-      default:
-        console.warn('❓ Unknown internal message type:', message.type);
-        sendResponse({ success: false, error: 'Unknown message type' });
+  // Handle async operations properly
+  (async () => {
+    try {
+      switch (message.type) {
+        case 'GET_LIBRARY_DATA':
+          console.log('📖 Getting library data from storage...');
+          const data = await storage.get(['folders', 'prompts', 'recentPromptId', 'settings']);
+          console.log('📖 Retrieved data:', { 
+            hasPrompts: !!data.prompts, 
+            hasFolders: !!data.folders,
+            hasSettings: !!data.settings
+          });
+          sendResponse({ success: true, data });
+          break;
+          
+        case 'UPDATE_LIBRARY_DATA':
+        case 'SAVE_LIBRARY_DATA': // Handle both message types
+          console.log('💾 Saving library data to storage...');
+          await storage.set(message.data);
+          console.log('✅ Data saved successfully');
+          sendResponse({ success: true });
+          break;
+          
+        case 'INSERT_PROMPT':
+          // Handle prompt insertion into LLM chat windows
+          console.log('🚀 Inserting prompt into chat window:', message.text?.substring(0, 50) + '...');
+          const insertResult = await handlePromptInsertion(message);
+          sendResponse(insertResult);
+          break;
+          
+        case 'READ_CURRENT_INPUT':
+          // Handle reading current input from chat window
+          console.log('📖 Reading current input from chat window');
+          const readResult = await handleReadCurrentInput(message);
+          sendResponse(readResult);
+          break;
+          
+        case 'OPEN_LLM_AND_CLOSE_PANEL':
+          // Handle LLM navigation from settings modal
+          console.log('🌐 Opening LLM and closing panel:', message.llm);
+          const navResult = await handleLLMNavigation(message);
+          sendResponse(navResult);
+          break;
+          
+        default:
+          console.warn('❓ Unknown internal message type:', message.type);
+          sendResponse({ success: false, error: 'Unknown message type' });
+      }
+    } catch (error) {
+      console.error('❌ Error handling internal message:', error);
+      sendResponse({ success: false, error: error.message });
     }
-  } catch (error) {
-    console.error('❌ Error handling internal message:', error);
-    sendResponse({ success: false, error: error.message });
-  }
+  })();
   
   return true; // Keep async response channel open
 });

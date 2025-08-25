@@ -214,11 +214,17 @@ class PromptLibrarySidePanel {
       const supportedDomains = ['claude.ai', 'chatgpt.com', 'gemini.google.com', 'perplexity.ai'];
       const isLLMPlatform = supportedDomains.some(domain => currentUrl.includes(domain));
       
-      if (!isLLMPlatform && !this.libraryData.settings?.goToLLM && Object.keys(this.libraryData.prompts).length > 0) {
-        // Not on LLM platform, no preferred LLM set, and user has prompts - show settings
+      if (!isLLMPlatform && !this.libraryData.settings?.goToLLM) {
+        // Not on LLM platform and no preferred LLM set - show settings
+        console.log('🔧 Should show LLM modal - not on LLM platform and no preference set');
         setTimeout(() => {
           this.showLLMModal();
         }, 500);
+      } else {
+        console.log('🔧 Not showing LLM modal:', { 
+          isLLMPlatform, 
+          hasGoToLLM: !!this.libraryData.settings?.goToLLM 
+        });
       }
     } catch (error) {
       console.log('Could not check current tab for auto LLM modal');
