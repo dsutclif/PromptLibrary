@@ -1608,13 +1608,16 @@ class PromptLibrarySidePanel {
     const prompt = this.libraryData.prompts[promptId];
     if (!prompt) return;
     
-    this.showSchedulePromptModal(prompt);
+    this.showSchedulePromptModal(prompt, existingSchedule);
   }
 
-  showSchedulePromptModal(prompt) {
+  showSchedulePromptModal(prompt, existingSchedule = null) {
     const now = new Date();
-    const defaultTime = new Date(now.getTime() + 5 * 60000); // 5 minutes from now
+    const defaultTime = existingSchedule 
+      ? new Date(existingSchedule.scheduleTime)
+      : new Date(now.getTime() + 5 * 60000); // 5 minutes from now or existing time
     const timeString = defaultTime.toISOString().slice(0, 16);
+    const isAutoSubmit = existingSchedule ? existingSchedule.autoSubmit : true;
     
     const modalHtml = `
       <div class="modal-overlay" id="schedule-modal-overlay">
@@ -1633,13 +1636,15 @@ class PromptLibrarySidePanel {
             </div>
             <div class="form-group">
               <label>
-                <input type="checkbox" id="auto-submit" checked> 
+                <input type="checkbox" id="auto-submit" ${isAutoSubmit ? 'checked' : ''}> 
                 Auto-submit after pasting
               </label>
             </div>
             <div class="modal-buttons">
               <button class="modal-btn secondary" id="schedule-cancel-btn">Cancel</button>
-              <button class="modal-btn primary" id="schedule-save-btn" data-prompt-id="${prompt.id}">Schedule</button>
+              <button class="modal-btn primary" id="schedule-save-btn" data-prompt-id="${prompt.id}" ${existingSchedule ? `data-schedule-id="${existingSchedule.id}"` : ''}>
+                ${existingSchedule ? 'Update Schedule' : 'Schedule'}
+              </button>
             </div>
           </div>
         </div>
@@ -1663,7 +1668,8 @@ class PromptLibrarySidePanel {
     
     document.getElementById('schedule-save-btn').addEventListener('click', (e) => {
       const promptId = e.target.dataset.promptId;
-      this.saveScheduledPrompt(promptId);
+      const scheduleId = e.target.dataset.scheduleId || null;
+      this.saveScheduledPrompt(promptId, scheduleId);
     });
     
     // Close on overlay click
@@ -1681,7 +1687,7 @@ class PromptLibrarySidePanel {
     }
   }
 
-  async saveScheduledPrompt(promptId) {
+  async saveScheduledPrompt(promptId, existingScheduleId = null) {
     const scheduleTime = document.getElementById('schedule-time').value;
     const autoSubmit = document.getElementById('auto-submit').checked;
     
@@ -1703,17 +1709,37 @@ class PromptLibrarySidePanel {
 
     const timeoutMs = scheduleDate.getTime() - now.getTime();
     
-    // Store scheduled prompt info
+    // Initialize scheduled array if needed
     if (!this.libraryData.scheduled) this.libraryData.scheduled = [];
-    const scheduledPrompt = {
-      id: 'sch_' + Date.now(),
-      promptId: promptId,
-      scheduleTime: scheduleDate.toISOString(),
-      autoSubmit: autoSubmit,
-      created: now.toISOString()
-    };
     
-    this.libraryData.scheduled.push(scheduledPrompt);
+    if (existingScheduleId) {
+      // Update existing schedule
+      const scheduleIndex = this.libraryData.scheduled.findIndex(s => s.id === existingScheduleId);
+      if (scheduleIndex !== -1) {
+        this.libraryData.scheduled[scheduleIndex] = {
+          ...this.libraryData.scheduled[scheduleIndex],
+          scheduleTime: scheduleDate.toISOString(),
+          autoSubmit: autoSubmit,
+          updated: now.toISOString()
+        };
+        this.showToast('Schedule updated successfully', 'success');
+      } else {
+        this.showToast('Schedule not found', 'error');
+        return;
+      }
+    } else {
+      // Create new schedule
+      const scheduledPrompt = {
+        id: 'sch_' + Date.now(),
+        promptId: promptId,
+        scheduleTime: scheduleDate.toISOString(),
+        autoSubmit: autoSubmit,
+        created: now.toISOString()
+      };
+      
+      this.libraryData.scheduled.push(scheduledPrompt);
+      this.showToast('Prompt scheduled successfully', 'success');
+    }
     await this.saveLibraryData();
 
     // Set timeout to execute the prompt
