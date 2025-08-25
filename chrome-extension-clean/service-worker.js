@@ -52,11 +52,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       switch (message.type) {
         case 'GET_LIBRARY_DATA':
           console.log('📖 Getting library data from storage...');
-          const data = await storage.get(['folders', 'prompts', 'recentPromptId', 'settings']);
+          const data = await storage.get(['folders', 'prompts', 'recentPromptId', 'settings', 'scheduled']);
           console.log('📖 Retrieved data:', { 
             hasPrompts: !!data.prompts, 
             hasFolders: !!data.folders,
-            hasSettings: !!data.settings
+            hasSettings: !!data.settings,
+            hasScheduled: !!data.scheduled
           });
           sendResponse({ success: true, data });
           break;

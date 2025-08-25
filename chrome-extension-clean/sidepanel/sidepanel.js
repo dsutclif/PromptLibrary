@@ -288,6 +288,9 @@ class PromptLibrarySidePanel {
 
     // Modal event listeners
     this.setupModalEventListeners();
+    
+    // Message listener for service worker communications
+    this.setupMessageListener();
   }
 
   setupModalEventListeners() {
@@ -378,23 +381,38 @@ class PromptLibrarySidePanel {
     });
   }
 
+  setupMessageListener() {
+    // Listen for messages from service worker
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'SCHEDULED_PROMPT_EXECUTED') {
+        console.log('📨 Scheduled prompt executed - refreshing UI');
+        // Reload data and refresh UI when scheduled prompt executes
+        this.loadLibraryData().then(() => {
+          this.renderLibrary();
+        });
+      }
+    });
+  }
+
   async loadLibraryData() {
     try {
       const response = await chrome.runtime.sendMessage({ type: 'GET_LIBRARY_DATA' });
       if (response && response.success) {
-        this.libraryData = response.data;
-        
-        // Ensure all required properties exist
-        if (!this.libraryData.folders) this.libraryData.folders = [];
-        if (!this.libraryData.prompts) this.libraryData.prompts = {};
-        if (!this.libraryData.settings) this.libraryData.settings = {};
+        // Reconstruct libraryData from individual storage keys
+        this.libraryData = {
+          folders: response.data.folders || [],
+          prompts: response.data.prompts || {},
+          settings: response.data.settings || {},
+          scheduled: response.data.scheduled || []
+        };
       } else {
         console.error('Failed to load library data:', response);
         // Initialize with empty data - NO sample data
         this.libraryData = { 
           folders: [], 
           prompts: {},
-          settings: {}
+          settings: {},
+          scheduled: []
         };
       }
       
@@ -410,16 +428,25 @@ class PromptLibrarySidePanel {
       this.libraryData = { 
         folders: [], 
         prompts: {},
-        settings: {}
+        settings: {},
+        scheduled: []
       };
     }
   }
 
   async saveLibraryData() {
     try {
+      // Save as individual keys to match service worker expectations
+      const dataToSave = {
+        folders: this.libraryData.folders || [],
+        prompts: this.libraryData.prompts || {},
+        settings: this.libraryData.settings || {},
+        scheduled: this.libraryData.scheduled || []
+      };
+      
       await chrome.runtime.sendMessage({ 
         type: 'SAVE_LIBRARY_DATA', 
-        data: this.libraryData 
+        data: dataToSave 
       });
     } catch (error) {
       console.error('Error saving library data:', error);
