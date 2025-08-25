@@ -1,59 +1,54 @@
 # Prompt Library Bridge
 
-This is a GitHub Pages hosted bridge for importing prompts into the Prompt Library Chrome extension via email links.
+This is a GitHub Pages hosted bridge for importing prompts into the Prompt Library Chrome extension via clean, short URLs.
 
-## Setup Instructions
+## How It Works
 
-1. **Fork or create a GitHub repository**
-2. **Enable GitHub Pages** (Settings > Pages > Source: Deploy from branch > main)
-3. **Update the extension ID** in `index.html` (line 125): Replace `YOUR_EXTENSION_ID_HERE` with your actual Chrome extension ID
-4. **Update the Chrome Web Store link** in `index.html` (line 139): Replace `YOUR_EXTENSION_ID` with your actual extension ID
+1. **JSON Files**: Prompts are stored as JSON files in the `/prompts/` directory
+2. **Clean URLs**: Access prompts using clean URLs like `?id=prompt-name`
+3. **Auto-Import**: Click the link to add the prompt directly to your extension
 
-## How to Create Import Links
+## Creating New Prompt Links
 
-### Method 1: Base64 Encoded (Recommended)
-```javascript
-const promptData = {
-    title: "Your Prompt Title",
-    body: "Your prompt content here...",
-    folderId: null // or specific folder ID
-};
-
-const encoded = btoa(JSON.stringify(promptData))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-
-const link = `https://dsutclif.github.io/PromptLibrary/?prompt=${encoded}`;
+### Step 1: Create JSON File
+Create a new file in `/prompts/[kebab-case-id].json`:
+```json
+{
+    "title": "Your Prompt Title",
+    "body": "Your prompt content here...",
+    "tags": ["relevant", "tags"]
+}
 ```
 
-### Method 2: URL Parameters
-```
-https://dsutclif.github.io/PromptLibrary/?title=Example%20Prompt&body=This%20is%20the%20prompt%20content
-```
+### Step 2: Generate URLs
+Two versions are available:
+- **Production**: `https://dsutclif.github.io/PromptLibrary/index.html?id=[kebab-case-id]`
+- **Development**: `https://dsutclif.github.io/PromptLibrary/index-dev.html?id=[kebab-case-id]`
 
-## Email Template Example
+### Step 3: Commit and Push
+Push your changes to GitHub for the links to work.
 
-```html
-<a href="https://dsutclif.github.io/PromptLibrary/?prompt=BASE64_DATA_HERE">
-    📋 Add This Prompt to Your Library
-</a>
+## Extension ID Configuration
+
+- **Production** (`index.html`): Uses published extension ID `pplllbfbdkhmahpcaaajalgacmhoofai`
+- **Development** (`index-dev.html`): Uses unpacked extension ID `lonoagbmfindfckmbalijmnpdjdapiod`
+
+## Example Links
+
+```
+https://dsutclif.github.io/PromptLibrary/index.html?id=email-writer
+https://dsutclif.github.io/PromptLibrary/index.html?id=code-reviewer
 ```
 
 ## Features
 
+- ✅ Clean, shareable URLs
 - ✅ Extension detection
 - ✅ Prompt preview before importing
 - ✅ Manual copy-paste fallback
 - ✅ Mobile-responsive design
 - ✅ Error handling
 - ✅ Success feedback
-
-## Testing
-
-1. Create a test link using the methods above
-2. Click the link in a browser with the extension installed
-3. Verify the prompt appears in your extension library
 
 ## Security Notes
 
