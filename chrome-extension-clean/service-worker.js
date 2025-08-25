@@ -97,6 +97,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse(submitResult);
           break;
           
+        case 'SCHEDULE_PROMPT_EXECUTION':
+          // Handle scheduling from sidepanel
+          console.log('⏰ Setting up scheduled prompt execution');
+          const scheduleResult = await handleScheduleExecution(message);
+          sendResponse(scheduleResult);
+          break;
+          
         default:
           console.warn('❓ Unknown internal message type:', message.type);
           sendResponse({ success: false, error: 'Unknown message type' });
@@ -253,6 +260,164 @@ async function handlePromptSubmission(message) {
   }
 }
 
+// Active scheduled timeouts (to prevent duplicates)
+const activeSchedules = new Map();
+
+// Handle scheduled prompt execution
+async function handleScheduleExecution(message) {
+  try {
+    const { scheduleId, scheduleTime } = message;
+    const scheduleDate = new Date(scheduleTime);
+    const now = new Date();
+    const timeoutMs = scheduleDate.getTime() - now.getTime();
+    
+    if (timeoutMs <= 0) {
+      return { success: false, error: 'Schedule time has passed' };
+    }
+    
+    // Clear existing timeout if updating
+    if (activeSchedules.has(scheduleId)) {
+      clearTimeout(activeSchedules.get(scheduleId));
+    }
+    
+    // Set new timeout
+    const timeoutId = setTimeout(async () => {
+      await executeScheduledPrompt(scheduleId);
+      activeSchedules.delete(scheduleId);
+    }, timeoutMs);
+    
+    activeSchedules.set(scheduleId, timeoutId);
+    console.log(`⏰ Scheduled prompt ${scheduleId} will execute in ${Math.round(timeoutMs/1000)}s`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Failed to schedule prompt:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Execute a scheduled prompt
+async function executeScheduledPrompt(scheduleId) {
+  try {
+    console.log(`🚀 Executing scheduled prompt: ${scheduleId}`);
+    
+    // Get library data to find the schedule
+    const libraryResult = await handleGetLibraryData();
+    if (!libraryResult.success) return;
+    
+    const libraryData = libraryResult.data;
+    const schedule = libraryData.scheduled?.find(s => s.id === scheduleId);
+    
+    if (!schedule) {
+      console.log(`❌ Schedule ${scheduleId} not found`);
+      return;
+    }
+    
+    const prompt = libraryData.prompts?.[schedule.promptId];
+    if (!prompt) {
+      console.log(`❌ Prompt ${schedule.promptId} not found`);
+      return;
+    }
+    
+    // Open side panel first (so user sees what's happening)
+    await chrome.sidePanel.open({ windowId: (await chrome.windows.getCurrent()).id });
+    
+    // Wait a moment for panel to load
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Get current tab
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const currentUrl = activeTab ? activeTab.url : '';
+    const supportedDomains = ['claude.ai', 'chatgpt.com', 'gemini.google.com', 'perplexity.ai'];
+    const isLLMPlatform = supportedDomains.some(domain => currentUrl.includes(domain));
+    
+    let targetTabId = activeTab?.id;
+    
+    // If not on LLM platform, open preferred LLM
+    if (!isLLMPlatform) {
+      const llmUrls = {
+        claude: 'https://claude.ai',
+        chatgpt: 'https://chatgpt.com',
+        gemini: 'https://gemini.google.com',
+        perplexity: 'https://www.perplexity.ai'
+      };
+      
+      const preferredLLM = libraryData.settings?.goToLLM || 'chatgpt';
+      const url = llmUrls[preferredLLM];
+      
+      if (url) {
+        await chrome.tabs.update({ url });
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for load
+        targetTabId = (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id;
+      }
+    }
+    
+    // Insert the prompt
+    const insertResult = await handleInsertPrompt({
+      text: prompt.body,
+      tabId: targetTabId
+    });
+    
+    if (insertResult.success && schedule.autoSubmit) {
+      // Auto-submit if enabled
+      setTimeout(async () => {
+        await handlePromptSubmission({ tabId: targetTabId });
+      }, 500);
+    }
+    
+    // Remove from scheduled list after execution
+    libraryData.scheduled = libraryData.scheduled.filter(s => s.id !== scheduleId);
+    await storage.set({ libraryData });
+    
+    console.log(`✅ Scheduled prompt ${scheduleId} executed and removed`);
+    
+  } catch (error) {
+    console.error(`❌ Failed to execute scheduled prompt ${scheduleId}:`, error);
+  }
+}
+
+// Restore scheduled prompts on startup
+async function restoreScheduledPrompts() {
+  try {
+    const libraryResult = await handleGetLibraryData();
+    if (!libraryResult.success) return;
+    
+    const libraryData = libraryResult.data;
+    const scheduled = libraryData.scheduled || [];
+    const now = new Date();
+    
+    let restoredCount = 0;
+    let removedCount = 0;
+    
+    for (const schedule of scheduled) {
+      const scheduleDate = new Date(schedule.scheduleTime);
+      
+      if (scheduleDate <= now) {
+        // Remove expired schedules
+        removedCount++;
+      } else {
+        // Restore active schedules
+        await handleScheduleExecution({
+          scheduleId: schedule.id,
+          scheduleTime: schedule.scheduleTime
+        });
+        restoredCount++;
+      }
+    }
+    
+    // Clean up expired schedules
+    if (removedCount > 0) {
+      libraryData.scheduled = libraryData.scheduled.filter(s => new Date(s.scheduleTime) > now);
+      await storage.set({ libraryData });
+    }
+    
+    console.log(`⏰ Restored ${restoredCount} scheduled prompts, removed ${removedCount} expired`);
+    
+  } catch (error) {
+    console.error('❌ Failed to restore scheduled prompts:', error);
+  }
+}
+
 // Handle external messages from bridge pages
 chrome.runtime.onMessageExternal.addListener(async (message, sender, sendResponse) => {
   console.log('🌍 EXTERNAL MESSAGE:', message.type, 'from:', sender.origin);
@@ -311,7 +476,8 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
   }
 });
 
-// Initialize storage on startup
+// Initialize storage and restore scheduled prompts on startup
 initializeStorage();
+restoreScheduledPrompts();
 
 console.log('🔥 EXTENSION READY - Internal & external messaging supported');

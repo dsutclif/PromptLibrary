@@ -1615,7 +1615,7 @@ class PromptLibrarySidePanel {
     const now = new Date();
     const defaultTime = existingSchedule 
       ? new Date(existingSchedule.scheduleTime)
-      : new Date(now.getTime() + 5 * 60000); // 5 minutes from now or existing time
+      : now; // Current time or existing time
     const timeString = defaultTime.toISOString().slice(0, 16);
     const isAutoSubmit = existingSchedule ? existingSchedule.autoSubmit : true;
     
@@ -1742,72 +1742,12 @@ class PromptLibrarySidePanel {
     }
     await this.saveLibraryData();
 
-    // Set timeout to execute the prompt
-    setTimeout(async () => {
-      try {
-        // First, ensure we're on the correct tab by switching to an LLM platform if needed
-        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const currentUrl = activeTab ? activeTab.url : '';
-        const supportedDomains = ['claude.ai', 'chatgpt.com', 'gemini.google.com', 'perplexity.ai'];
-        const isLLMPlatform = supportedDomains.some(domain => currentUrl.includes(domain));
-        
-        let targetTabId = activeTab?.id;
-        
-        // If not on LLM platform, open preferred LLM
-        if (!isLLMPlatform) {
-          const llmUrls = {
-            claude: 'https://claude.ai',
-            chatgpt: 'https://chatgpt.com',
-            gemini: 'https://gemini.google.com',
-            perplexity: 'https://www.perplexity.ai'
-          };
-          
-          const preferredLLM = this.libraryData.settings?.goToLLM || 'chatgpt';
-          const url = llmUrls[preferredLLM];
-          
-          if (url) {
-            await chrome.tabs.update({ url });
-            targetTabId = (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id;
-            
-            // Wait for tab to load
-            await new Promise(resolve => setTimeout(resolve, 3000));
-          }
-        }
-        
-        // Insert the prompt with explicit tabId
-        const response = await chrome.runtime.sendMessage({
-          type: 'INSERT_PROMPT',
-          text: prompt.body,
-          tabId: targetTabId
-        });
-        
-        if (response && response.success && autoSubmit) {
-          // If auto-submit is enabled, try to submit the prompt
-          setTimeout(async () => {
-            try {
-              await chrome.runtime.sendMessage({
-                type: 'SUBMIT_PROMPT',
-                tabId: targetTabId
-              });
-            } catch (error) {
-              console.error('Failed to auto-submit:', error);
-            }
-          }, 500);
-        }
-        
-        this.showToast('Scheduled prompt executed!', 'success');
-      } catch (error) {
-        console.error('Failed to execute scheduled prompt:', error);
-        this.showToast('Failed to execute scheduled prompt', 'error');
-      }
-      
-      // Remove from scheduled list after execution (auto-delete)
-      this.libraryData.scheduled = this.libraryData.scheduled.filter(sp => sp.id !== scheduledPrompt.id);
-      await this.saveLibraryData();
-      
-      // Refresh UI to show the prompt has been removed
-      this.renderLibrary();
-    }, timeoutMs);
+    // Ask service worker to handle the scheduling (so it persists)
+    chrome.runtime.sendMessage({
+      type: 'SCHEDULE_PROMPT_EXECUTION',
+      scheduleId: existingScheduleId || scheduledPrompt.id,
+      scheduleTime: scheduleDate.toISOString()
+    });
 
     this.hideScheduleModal();
     this.showToast(`Prompt scheduled for ${scheduleDate.toLocaleString()}`, 'success');
