@@ -7,6 +7,37 @@ A Chrome MV3 extension designed to streamline prompt management and insertion in
 Preferred communication style: Simple, everyday language.
 Development workflow: Always update prompt-library-clean.zip with every code change for Chrome Web Store submission readiness.
 
+## Prompt Link Creation Process
+**Complete Workflow for Creating New GitHub Pages Prompt Links:**
+
+### When User Requests New Prompt Link:
+1. **Create JSON File:** Write to `prompts/[kebab-case-id].json` with:
+   ```json
+   {
+     "title": "User Provided Title",
+     "body": "User provided prompt content",
+     "tags": ["relevant", "tags"]
+   }
+   ```
+
+2. **Generate Links:** Provide both versions:
+   - **Dev:** `https://dsutclif.github.io/PromptLibrary/index-dev.html?id=[kebab-case-id]`
+   - **Prod:** `https://dsutclif.github.io/PromptLibrary/index.html?id=[kebab-case-id]`
+
+3. **Explain Next Step:** Tell user to use Replit Git tab to commit and push to GitHub for links to work.
+
+### ID Naming Convention:
+- Convert title to lowercase kebab-case (e.g., "Hello World" → "hello-world")
+- Use as both filename and URL parameter
+
+### GitHub Repository Integration:
+- Repository: `dsutclif/PromptLibrary` 
+- GitHub Pages automatically serves new prompts after push
+- Files created in this Replit sync to GitHub when user pushes via Git tab
+
+### Existing Prompt IDs:
+- email-writer, code-reviewer, blog-helper, meeting-notes, hello-world
+
 ## System Architecture
 
 ### Extension Core
