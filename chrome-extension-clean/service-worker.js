@@ -19,15 +19,7 @@ async function initializeStorage() {
   if (!data.version) {
     await storage.set({
       version: 1,
-      folders: [
-        { 
-          id: 'fld_root', 
-          name: 'Root', 
-          parentId: null, 
-          childFolderIds: [], 
-          promptIds: [] 
-        }
-      ],
+      folders: [], // No default folders - clean start
       prompts: {},
       recentPromptId: null
     });
@@ -89,19 +81,13 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
         id: promptId,
         title: message.data.title || 'Imported Prompt',
         body: message.data.body || '',
-        parentFolderId: 'fld_root',
+        folderId: message.data.folderId || null, // Use folderId from bridge, null = root level
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
       
       // Add to prompts
       data.prompts[promptId] = newPrompt;
-      
-      // Add to root folder
-      const rootFolder = data.folders.find(f => f.id === 'fld_root');
-      if (rootFolder) {
-        rootFolder.promptIds.push(promptId);
-      }
       
       // Save to storage
       await storage.set({ prompts: data.prompts, folders: data.folders });
