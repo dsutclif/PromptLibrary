@@ -24,7 +24,9 @@ Development workflow: Always update prompt-library-clean.zip with every code cha
    - **Dev:** `https://dsutclif.github.io/PromptLibrary/index-dev.html?id=[kebab-case-id]`
    - **Prod:** `https://dsutclif.github.io/PromptLibrary/index.html?id=[kebab-case-id]`
 
-3. **Explain Next Step:** Tell user to use Replit Git tab to commit and push to GitHub for links to work.
+3. **Update Link Registry:** Add new URLs to `prompt-bridge/prompt-links.txt`
+
+4. **Explain Next Step:** Tell user to use Replit Git tab to commit and push to GitHub for links to work.
 
 ### ID Naming Convention:
 - Convert title to lowercase kebab-case (e.g., "Hello World" → "hello-world")

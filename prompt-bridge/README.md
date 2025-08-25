@@ -25,7 +25,17 @@ Two versions are available:
 - **Production**: `https://dsutclif.github.io/PromptLibrary/index.html?id=[kebab-case-id]`
 - **Development**: `https://dsutclif.github.io/PromptLibrary/index-dev.html?id=[kebab-case-id]`
 
-### Step 3: Commit and Push
+### Step 3: Update Link Registry
+Add the new URLs to `/prompt-bridge/prompt-links.txt`:
+```
+## Production Links (Published Extension)
+https://dsutclif.github.io/PromptLibrary/index.html?id=[your-new-id]
+
+## Development Links (Unpacked Extension)  
+https://dsutclif.github.io/PromptLibrary/index-dev.html?id=[your-new-id]
+```
+
+### Step 4: Commit and Push
 Push your changes to GitHub for the links to work.
 
 ## Extension ID Configuration
