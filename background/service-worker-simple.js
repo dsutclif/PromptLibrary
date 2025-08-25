@@ -98,51 +98,23 @@ async function injectContentScriptIfNeeded(tab) {
   }
 }
 
-// External message handling (from websites like bridge pages)
-chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
-  console.log('🌐 External message received:', message, 'from:', sender.origin);
-  
-  if (!message || !message.type) {
-    console.log('❌ Invalid external message format');
-    sendResponse({ success: false, error: 'Invalid message format' });
-    return false;
-  }
-  
-  // Handle external messages (only specific types allowed for security)
-  switch (message.type) {
-    case 'GET_LIBRARY_DATA':
-      console.log('📚 Handling GET_LIBRARY_DATA from external');
-      handleGetLibraryData().then((result) => {
-        console.log('📚 Sending library data response:', result);
-        sendResponse(result);
-      }).catch((error) => {
-        console.log('❌ Error getting library data:', error);
-        sendResponse({ success: false, error: error.message });
-      });
-      return true; // Will respond asynchronously
-      
-    case 'IMPORT_EXTERNAL_PROMPT':
-      console.log('📝 Handling IMPORT_EXTERNAL_PROMPT from external');
-      handleExternalPromptImport(message.data).then((result) => {
-        console.log('📝 Sending import response:', result);
-        sendResponse(result);
-      }).catch((error) => {
-        console.log('❌ Error importing prompt:', error);
-        sendResponse({ success: false, error: error.message });
-      });
-      return true; // Will respond asynchronously
-      
-    default:
-      console.log('❌ External message type not allowed:', message.type);
-      sendResponse({ success: false, error: 'External message type not allowed' });
-      return false;
-  }
-});
-
-// Internal message handling (from extension components)
+// Unified message handling (internal and external)
+// Note: External messages come with sender.origin, internal don't
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Check if this is an external message (from website)
+  const isExternal = sender.origin && sender.origin.includes('github.io');
+  
+  console.log(isExternal ? '🌐 External message:' : '🔧 Internal message:', message.type, isExternal ? `from ${sender.origin}` : '');
+  
   if (!message || !message.type) {
     sendResponse({ success: false, error: 'Invalid message format' });
+    return;
+  }
+  
+  // For external messages, only allow specific types
+  if (isExternal && !['GET_LIBRARY_DATA', 'IMPORT_EXTERNAL_PROMPT'].includes(message.type)) {
+    console.log('❌ External message type not allowed:', message.type);
+    sendResponse({ success: false, error: 'External message type not allowed' });
     return;
   }
   
@@ -634,4 +606,4 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 // Removed complex permission checking function - now handled directly in sidepanel for better reliability
 
 console.log('✅ Background service worker initialized');
-console.log('🌐 External message handler registered for bridge communication');
+console.log('🌐 Unified message handler ready for internal & external communication');
