@@ -93,13 +93,15 @@ async function handlePromptInsertion(message) {
         files: ['content/content-script-main.js']
       });
       
-      // Send prompt to content script
-      await chrome.tabs.sendMessage(tabId, {
+      // Wait a moment for script to load, then send prompt
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const response = await chrome.tabs.sendMessage(tabId, {
         type: 'INSERT_PROMPT',
         text: message.text
       });
       
-      return { success: true, method: 'direct' };
+      return { success: true, method: 'direct', inserted: response?.success };
     } else {
       // Fallback: copy to clipboard
       console.log('📋 Not on LLM site, copying to clipboard');
@@ -124,7 +126,9 @@ async function handleReadCurrentInput(message) {
         files: ['content/content-script-main.js']
       });
       
-      // Request current input from content script
+      // Wait a moment for script to load, then request current input
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const response = await chrome.tabs.sendMessage(tabId, {
         type: 'READ_CURRENT_INPUT'
       });

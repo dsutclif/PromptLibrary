@@ -1338,8 +1338,8 @@ class PromptLibrarySidePanel {
           this.showToast(`Opening ${this.selectedLLM}...`, 'success');
         } catch (error) {
           // Fallback to simple tab creation
-          await chrome.tabs.create({ url });
-          this.showToast(`Opening ${this.selectedLLM}...`, 'success');
+          await chrome.tabs.update({ url });
+          this.showToast(`Navigating to ${this.selectedLLM}...`, 'success');
         }
       }
     } else {
@@ -1712,8 +1712,8 @@ class PromptLibrarySidePanel {
           const url = llmUrls[preferredLLM];
           
           if (url) {
-            const newTab = await chrome.tabs.create({ url, active: true });
-            targetTabId = newTab.id;
+            await chrome.tabs.update({ url });
+            targetTabId = (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id;
             
             // Wait for tab to load
             await new Promise(resolve => setTimeout(resolve, 3000));
