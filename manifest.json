@@ -10,7 +10,8 @@
     "matches": [
       "https://*.github.io/*",
       "https://*.githubusercontent.com/*"
-    ]
+    ],
+    "accepts_tls_channel_id": false
   },
   
   "optional_host_permissions": [
