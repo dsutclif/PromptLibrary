@@ -302,10 +302,8 @@ async function executeScheduledPrompt(scheduleId) {
     console.log(`🚀 Executing scheduled prompt: ${scheduleId}`);
     
     // Get library data to find the schedule
-    const libraryResult = await handleGetLibraryData();
-    if (!libraryResult.success) return;
-    
-    const libraryData = libraryResult.data;
+    const data = await storage.get(['libraryData']);
+    const libraryData = data.libraryData || { prompts: {}, folders: {}, scheduled: [] };
     const schedule = libraryData.scheduled?.find(s => s.id === scheduleId);
     
     if (!schedule) {
@@ -379,10 +377,8 @@ async function executeScheduledPrompt(scheduleId) {
 // Restore scheduled prompts on startup
 async function restoreScheduledPrompts() {
   try {
-    const libraryResult = await handleGetLibraryData();
-    if (!libraryResult.success) return;
-    
-    const libraryData = libraryResult.data;
+    const data = await storage.get(['libraryData']);
+    const libraryData = data.libraryData || { prompts: {}, folders: {}, scheduled: [] };
     const scheduled = libraryData.scheduled || [];
     const now = new Date();
     
